@@ -910,6 +910,43 @@ protected:
     ByteCodeStackOffset m_dstOffset;
 };
 
+class AtomicLoad : public ByteCode {
+public:
+    AtomicLoad(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset srcOffset, ByteCodeStackOffset dstOffset)
+        : ByteCode(opcode)
+        , m_offset(offset)
+        , m_srcOffset(srcOffset)
+        , m_dstOffset(dstOffset)
+    {
+    }
+
+    uint32_t offset() const
+    {
+        return m_offset;
+    }
+
+    ByteCodeStackOffset srcOffset() const { return m_srcOffset; }
+    ByteCodeStackOffset dstOffset() const { return m_dstOffset; }
+
+#if !defined(NDEBUG)
+    virtual size_t byteCodeSize()
+    {
+        return sizeof(AtomicLoad);
+    }
+
+    virtual void dump(size_t pos)
+    {
+        DUMP_BYTECODE_OFFSET(srcOffset);
+        DUMP_BYTECODE_OFFSET(dstOffset);
+        printf("offset: %" PRIu32, m_offset);
+    }
+#endif
+protected:
+    uint32_t m_offset;
+    ByteCodeStackOffset m_srcOffset;
+    ByteCodeStackOffset m_dstOffset;
+};
+
 class MemoryStore : public ByteCode {
 public:
     MemoryStore(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1)
@@ -945,6 +982,120 @@ protected:
     uint32_t m_offset;
     ByteCodeStackOffset m_src0Offset;
     ByteCodeStackOffset m_src1Offset;
+};
+
+class AtomicStore : public ByteCode {
+public:
+    AtomicStore(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1)
+        : ByteCode(opcode)
+        , m_offset(offset)
+        , m_src0Offset(src0)
+        , m_src1Offset(src1)
+    {
+    }
+
+    uint32_t offset() const
+    {
+        return m_offset;
+    }
+
+    ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
+    ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
+
+#if !defined(NDEBUG)
+    virtual size_t byteCodeSize()
+    {
+        return sizeof(MemoryStore);
+    }
+
+    virtual void dump(size_t pos)
+    {
+        DUMP_BYTECODE_OFFSET(src0Offset);
+        DUMP_BYTECODE_OFFSET(src1Offset);
+        printf("offset: %" PRIu32, m_offset);
+    }
+#endif
+protected:
+    uint32_t m_offset;
+    ByteCodeStackOffset m_src0Offset;
+    ByteCodeStackOffset m_src1Offset;
+};
+
+class AtomicRmw : public ByteCode {
+public:
+    AtomicRmw(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1)
+        : ByteCode(opcode)
+        , m_offset(offset)
+        , m_src0Offset(src0)
+        , m_src1Offset(src1)
+    {
+    }
+
+    uint32_t offset() const
+    {
+        return m_offset;
+    }
+
+    ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
+    ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
+
+#if !defined(NDEBUG)
+    virtual size_t byteCodeSize()
+    {
+        return sizeof(MemoryStore);
+    }
+
+    virtual void dump(size_t pos)
+    {
+        DUMP_BYTECODE_OFFSET(src0Offset);
+        DUMP_BYTECODE_OFFSET(src1Offset);
+        printf("offset: %" PRIu32, m_offset);
+    }
+#endif
+protected:
+    uint32_t m_offset;
+    ByteCodeStackOffset m_src0Offset;
+    ByteCodeStackOffset m_src1Offset;
+};
+
+class AtomicCmpxchg : public ByteCode {
+public:
+    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1, ByteCodeStackOffset src2)
+        : ByteCode(opcode)
+        , m_offset(offset)
+        , m_src0Offset(src0)
+        , m_src1Offset(src1)
+        , m_src2Offset(src2)
+    {
+    }
+
+    uint32_t offset() const
+    {
+        return m_offset;
+    }
+
+    ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
+    ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
+    ByteCodeStackOffset src2Offset() const { return m_src2Offset; }
+
+#if !defined(NDEBUG)
+    virtual size_t byteCodeSize()
+    {
+        return sizeof(MemoryStore);
+    }
+
+    virtual void dump(size_t pos)
+    {
+        DUMP_BYTECODE_OFFSET(src0Offset);
+        DUMP_BYTECODE_OFFSET(src1Offset);
+        printf("offset: %" PRIu32, m_offset);
+    }
+#endif
+protected:
+    uint32_t m_offset;
+    ByteCodeStackOffset m_src0Offset;
+    ByteCodeStackOffset m_src1Offset;
+    ByteCodeStackOffset m_src2Offset;
 };
 
 class TableGet : public ByteCode {

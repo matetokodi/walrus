@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="walrus jit" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="--jit --jit-verbose-color ./atomic_test.wast" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="WALRUS" TARGET_NAME="walrus" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="WALRUS" RUN_TARGET_NAME="walrus">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

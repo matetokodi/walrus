@@ -20,6 +20,7 @@
 #include "runtime/JITExec.h"
 #include "runtime/Module.h"
 
+#include <cstdio>
 #include <map>
 
 namespace Walrus {
@@ -212,6 +213,96 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case F64GeOpcode: {
             group = Instruction::CompareFloat;
             paramCount = 2;
+            break;
+        }
+        case I32AtomicLoadOpcode:
+        case I32AtomicLoad8UOpcode:
+        case I32AtomicLoad16UOpcode: {
+            group = Instruction::Atomic;
+            paramCount = 1;
+            info = Instruction::kIs32Bit;
+            break;
+        }
+        case I32AtomicStoreOpcode:
+        case I32AtomicStore8Opcode:
+        case I32AtomicStore16Opcode:
+        case I32AtomicRmwAddOpcode:
+        case I32AtomicRmw8AddUOpcode:
+        case I32AtomicRmw16AddUOpcode:
+        case I32AtomicRmwSubOpcode:
+        case I32AtomicRmw8SubUOpcode:
+        case I32AtomicRmw16SubUOpcode:
+        case I32AtomicRmwAndOpcode:
+        case I32AtomicRmw8AndUOpcode:
+        case I32AtomicRmw16AndUOpcode:
+        case I32AtomicRmwOrOpcode:
+        case I32AtomicRmw8OrUOpcode:
+        case I32AtomicRmw16OrUOpcode:
+        case I32AtomicRmwXorOpcode:
+        case I32AtomicRmw8XorUOpcode:
+        case I32AtomicRmw16XorUOpcode:
+        case I32AtomicRmwXchgOpcode:
+        case I32AtomicRmw8XchgUOpcode:
+        case I32AtomicRmw16XchgUOpcode: {
+            group = Instruction::Atomic;
+            paramCount = 2;
+            info = Instruction::kIs32Bit;
+            break;
+        }
+        case I32AtomicRmwCmpxchgOpcode:
+        case I32AtomicRmw8CmpxchgUOpcode:
+        case I32AtomicRmw16CmpxchgUOpcode: {
+            group = Instruction::Atomic;
+            paramCount = 3;
+            info = Instruction::kIs32Bit;
+            break;
+        }
+        case I64AtomicLoadOpcode:
+        case I64AtomicLoad8UOpcode:
+        case I64AtomicLoad16UOpcode:
+        case I64AtomicLoad32UOpcode: {
+            group = Instruction::Atomic;
+            paramCount = 1;
+            break;
+        }
+        case I64AtomicStoreOpcode:
+        case I64AtomicStore8Opcode:
+        case I64AtomicStore16Opcode:
+        case I64AtomicStore32Opcode:
+        case I64AtomicRmwAddOpcode:
+        case I64AtomicRmw8AddUOpcode:
+        case I64AtomicRmw16AddUOpcode:
+        case I64AtomicRmw32AddUOpcode:
+        case I64AtomicRmwSubOpcode:
+        case I64AtomicRmw8SubUOpcode:
+        case I64AtomicRmw16SubUOpcode:
+        case I64AtomicRmw32SubUOpcode:
+        case I64AtomicRmwAndOpcode:
+        case I64AtomicRmw8AndUOpcode:
+        case I64AtomicRmw16AndUOpcode:
+        case I64AtomicRmw32AndUOpcode:
+        case I64AtomicRmwOrOpcode:
+        case I64AtomicRmw8OrUOpcode:
+        case I64AtomicRmw16OrUOpcode:
+        case I64AtomicRmw32OrUOpcode:
+        case I64AtomicRmwXorOpcode:
+        case I64AtomicRmw8XorUOpcode:
+        case I64AtomicRmw16XorUOpcode:
+        case I64AtomicRmw32XorUOpcode:
+        case I64AtomicRmwXchgOpcode:
+        case I64AtomicRmw8XchgUOpcode:
+        case I64AtomicRmw16XchgUOpcode:
+        case I64AtomicRmw32XchgUOpcode: {
+            group = Instruction::Atomic;
+            paramCount = 2;
+            break;
+        }
+        case I64AtomicRmwCmpxchgOpcode:
+        case I64AtomicRmw8CmpxchgUOpcode:
+        case I64AtomicRmw16CmpxchgUOpcode:
+        case I64AtomicRmw32CmpxchgUOpcode: {
+            group = Instruction::Atomic;
+            paramCount = 3;
             break;
         }
         case I32ClzOpcode:

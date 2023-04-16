@@ -16,6 +16,8 @@
 
 /* Only included by jit-backend.cc */
 
+#include "sljitLir.h"
+#include <cstdio>
 static void emitStoreImmediate(sljit_compiler* compiler, Operand* result, Instruction* instr)
 {
     sljit_sw offset = static_cast<sljit_sw>(result->offset << 2);
@@ -233,6 +235,114 @@ static void emitBinary(sljit_compiler* compiler, Instruction* instr)
     }
 
     sljit_emit_op2(compiler, opcode, args[2].arg, args[2].argw, args[0].arg, args[0].argw, args[1].arg, args[1].argw);
+}
+
+static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
+{
+    CompileContext* context = CompileContext::get(compiler);
+    Operand* operands = instr->operands();
+    JITArg args[instr->paramCount()];
+
+    for (unsigned int i = 0; i < instr->paramCount(); ++i) {
+        operandToArg(operands + i, args[i]);
+    }
+
+    sljit_s32 opcode;
+
+    switch (instr->opcode()) {
+    case I32AtomicLoadOpcode:
+    case I32AtomicLoad8UOpcode:
+    case I32AtomicLoad16UOpcode: {
+        break;
+    }
+    case I32AtomicStoreOpcode:
+    case I32AtomicStore8Opcode:
+    case I32AtomicStore16Opcode: {
+        break;
+    }
+    case I32AtomicRmwAddOpcode:
+    case I32AtomicRmw8AddUOpcode:
+    case I32AtomicRmw16AddUOpcode:
+    case I32AtomicRmwSubOpcode:
+    case I32AtomicRmw8SubUOpcode:
+    case I32AtomicRmw16SubUOpcode:
+    case I32AtomicRmwAndOpcode:
+    case I32AtomicRmw8AndUOpcode:
+    case I32AtomicRmw16AndUOpcode:
+    case I32AtomicRmwOrOpcode:
+    case I32AtomicRmw8OrUOpcode:
+    case I32AtomicRmw16OrUOpcode:
+    case I32AtomicRmwXorOpcode:
+    case I32AtomicRmw8XorUOpcode:
+    case I32AtomicRmw16XorUOpcode:
+    case I32AtomicRmwXchgOpcode:
+    case I32AtomicRmw8XchgUOpcode:
+    case I32AtomicRmw16XchgUOpcode: {
+        break;
+    }
+    case I32AtomicRmwCmpxchgOpcode:
+    case I32AtomicRmw8CmpxchgUOpcode:
+    case I32AtomicRmw16CmpxchgUOpcode: {
+        break;
+    }
+    case I64AtomicLoadOpcode: {
+        sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, static_cast<sljit_sw>(*(context->compiler->memoryPtr())), args[0].arg, args[0].argw);
+        sljit_emit_atomic_load(compiler, SLJIT_MOV, SLJIT_R1, SLJIT_R2, SLJIT_R3);
+        break;
+    }
+    case I64AtomicLoad8UOpcode:
+    case I64AtomicLoad16UOpcode:
+    case I64AtomicLoad32UOpcode: {
+        break;
+    }
+    case I64AtomicStoreOpcode: {
+        sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, static_cast<sljit_sw>(*(context->compiler->memoryPtr())), args[0].arg, args[0].argw);
+        sljit_emit_atomic_store(compiler, SLJIT_MOV, SLJIT_R1, SLJIT_R2, SLJIT_R3);
+        break;
+    }
+    case I64AtomicStore8Opcode:
+    case I64AtomicStore16Opcode:
+    case I64AtomicStore32Opcode: {
+        break;
+    }
+    case I64AtomicRmwAddOpcode:
+    case I64AtomicRmw8AddUOpcode:
+    case I64AtomicRmw16AddUOpcode:
+    case I64AtomicRmw32AddUOpcode:
+    case I64AtomicRmwSubOpcode:
+    case I64AtomicRmw8SubUOpcode:
+    case I64AtomicRmw16SubUOpcode:
+    case I64AtomicRmw32SubUOpcode:
+    case I64AtomicRmwAndOpcode:
+    case I64AtomicRmw8AndUOpcode:
+    case I64AtomicRmw16AndUOpcode:
+    case I64AtomicRmw32AndUOpcode:
+    case I64AtomicRmwOrOpcode:
+    case I64AtomicRmw8OrUOpcode:
+    case I64AtomicRmw16OrUOpcode:
+    case I64AtomicRmw32OrUOpcode:
+    case I64AtomicRmwXorOpcode:
+    case I64AtomicRmw8XorUOpcode:
+    case I64AtomicRmw16XorUOpcode:
+    case I64AtomicRmw32XorUOpcode:
+    case I64AtomicRmwXchgOpcode:
+    case I64AtomicRmw8XchgUOpcode:
+    case I64AtomicRmw16XchgUOpcode:
+    case I64AtomicRmw32XchgUOpcode: {
+        break;
+    }
+    case I64AtomicRmwCmpxchgOpcode:
+    case I64AtomicRmw8CmpxchgUOpcode:
+    case I64AtomicRmw16CmpxchgUOpcode:
+    case I64AtomicRmw32CmpxchgUOpcode: {
+        break;
+    }
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+        break;
+    }
+
+    //    sljit_emit_op2(compiler, opcode, args[2].arg, args[2].argw, args[0].arg, args[0].argw, args[1].arg, args[1].argw);
 }
 
 static sljit_s32 popcnt32(sljit_s32 arg)

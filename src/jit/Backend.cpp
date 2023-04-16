@@ -510,6 +510,10 @@ JITModule* JITCompiler::compile()
             emitFloatBinary(m_compiler, item->asInstruction());
             break;
         }
+        case Instruction::Atomic: {
+            emitAtomic(m_compiler, item->asInstruction());
+            break;
+        }
         case Instruction::Unary: {
             emitUnary(m_compiler, item->asInstruction());
             break;
