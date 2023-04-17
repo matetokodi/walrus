@@ -485,6 +485,7 @@ private:
     size_t m_branchTableSize;
     int m_verboseLevel;
     uint32_t m_options;
+    // TODO: this probably should not be here but in the context or module
     std::byte* m_memoryPtr;
 
     std::vector<FunctionList> m_functionList;

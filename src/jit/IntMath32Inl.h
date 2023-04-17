@@ -668,6 +668,11 @@ static void emitBinary(sljit_compiler* compiler, Instruction* instr)
     }
 }
 
+static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
+{
+    // TODO: implement atomics on 32 bit (use callbacks for 64 bit sized operations)
+}
+
 static void emitCountZeroes(sljit_compiler* compiler, sljit_s32 op, JITArgPair* args)
 {
     sljit_s32 resultReg;

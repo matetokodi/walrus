@@ -253,6 +253,7 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I32AtomicRmw8CmpxchgUOpcode:
         case I32AtomicRmw16CmpxchgUOpcode: {
             group = Instruction::Atomic;
+            // TODO: handle paramCount = 3 cases (the code below only handles 1 and 2)
             paramCount = 3;
             info = Instruction::kIs32Bit;
             break;
@@ -302,6 +303,7 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I64AtomicRmw16CmpxchgUOpcode:
         case I64AtomicRmw32CmpxchgUOpcode: {
             group = Instruction::Atomic;
+            // TODO: handle paramCount = 3 cases (the code below only handles 1 and 2)
             paramCount = 3;
             break;
         }
