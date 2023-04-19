@@ -335,10 +335,12 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         break;
     }
 
+    // TODO: segfaults because it tries to load data from 0x0 at the beginning of the jit code
     // TODO: move memory from the compiler the context or module, because the compiler is freed before the jit code is run
     // TODO: add checks and register reallocating for when the args are in the ATOMIC_X_REGs
 
     sljit_emit_op0(compiler, SLJIT_BREAKPOINT);
+#if 1
     sljit_emit_op2(compiler, SLJIT_ADD, ATOMIC_MEM_REG, 0, SLJIT_IMM, static_cast<sljit_sw>(*(context->compiler->memoryPtr())), args[0].arg, args[0].argw);
 
     switch (instr->opcode()) {
@@ -455,6 +457,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         RELEASE_ASSERT_NOT_REACHED();
         break;
     }
+#endif
 }
 
 static sljit_s32 popcnt32(sljit_s32 arg)
