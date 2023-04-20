@@ -335,13 +335,13 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         break;
     }
 
-    // TODO: segfaults because it tries to load data from 0x0 at the beginning of the jit code
+    // TODO: segfaults because the pointer to where the reuslt whould be written and the resultOffsets are NULL
     // TODO: move memory from the compiler the context or module, because the compiler is freed before the jit code is run
     // TODO: add checks and register reallocating for when the args are in the ATOMIC_X_REGs
 
-    sljit_emit_op0(compiler, SLJIT_BREAKPOINT);
+//    sljit_emit_op0(compiler, SLJIT_BREAKPOINT);
 #if 1
-    sljit_emit_op2(compiler, SLJIT_ADD, ATOMIC_MEM_REG, 0, SLJIT_IMM, static_cast<sljit_sw>(*(context->compiler->memoryPtr())), args[0].arg, args[0].argw);
+    sljit_emit_op2(compiler, SLJIT_ADD, ATOMIC_MEM_REG, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg, args[0].argw);
 
     switch (instr->opcode()) {
     case I32AtomicLoadOpcode:
@@ -352,6 +352,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicLoad16UOpcode:
     case I64AtomicLoad32UOpcode: {
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         break;
     }
     case I32AtomicStoreOpcode:
@@ -372,6 +373,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmw16AddUOpcode:
     case I64AtomicRmw32AddUOpcode: {
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         sljit_emit_op2(compiler, SLJIT_ADD, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
         sljit_emit_atomic_store(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
         break;
@@ -384,6 +386,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmw16SubUOpcode:
     case I64AtomicRmw32SubUOpcode: {
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         sljit_emit_op2(compiler, SLJIT_SUB, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
         sljit_emit_atomic_store(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
         break;
@@ -396,6 +399,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmw16AndUOpcode:
     case I64AtomicRmw32AndUOpcode: {
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         sljit_emit_op2(compiler, SLJIT_AND, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
         sljit_emit_atomic_store(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
         break;
@@ -408,6 +412,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmw16OrUOpcode:
     case I64AtomicRmw32OrUOpcode: {
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         sljit_emit_op2(compiler, SLJIT_OR, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
         sljit_emit_atomic_store(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
         break;
@@ -420,6 +425,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmw16XorUOpcode:
     case I64AtomicRmw32XorUOpcode: {
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         sljit_emit_op2(compiler, SLJIT_XOR, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
         sljit_emit_atomic_store(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
         break;
