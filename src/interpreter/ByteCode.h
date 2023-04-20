@@ -1005,7 +1005,7 @@ public:
 #if !defined(NDEBUG)
     virtual size_t byteCodeSize()
     {
-        return sizeof(MemoryStore);
+        return sizeof(AtomicStore);
     }
 
     virtual void dump(size_t pos)
@@ -1042,7 +1042,7 @@ public:
 #if !defined(NDEBUG)
     virtual size_t byteCodeSize()
     {
-        return sizeof(MemoryStore);
+        return sizeof(AtomicRmw);
     }
 
     virtual void dump(size_t pos)
@@ -1081,7 +1081,7 @@ public:
 #if !defined(NDEBUG)
     virtual size_t byteCodeSize()
     {
-        return sizeof(MemoryStore);
+        return sizeof(AtomicCmpxchg);
     }
 
     virtual void dump(size_t pos)

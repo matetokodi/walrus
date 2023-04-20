@@ -457,6 +457,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmw16CmpxchgUOpcode:
     case I64AtomicRmw32CmpxchgUOpcode: {
         // TODO: implement cmpxchg
+        // TODO: in the bytecodeparser cmpxchg is not yet handled
         break;
     }
     default:
