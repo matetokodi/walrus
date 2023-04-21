@@ -16,6 +16,7 @@
 
 #include "Walrus.h"
 
+#include "interpreter/ByteCode.h"
 #include "jit/Compiler.h"
 #include "runtime/JITExec.h"
 #include "runtime/Module.h"
@@ -253,9 +254,23 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I32AtomicRmw8CmpxchgUOpcode:
         case I32AtomicRmw16CmpxchgUOpcode: {
             group = Instruction::Atomic;
-            // TODO: handle paramCount = 3 cases (the code below only handles 1 and 2)
             paramCount = 3;
             info = Instruction::kIs32Bit;
+
+            Instruction* instr = compiler->append(byteCode, group, opcode, 3, 1);
+            instr->addInfo(info);
+
+            AtomicCmpxchg* rmwCmpxchgOperation = reinterpret_cast<AtomicCmpxchg*>(byteCode);
+            Operand* operands = instr->operands();
+
+            operands[0].item = nullptr;
+            operands[0].offset = STACK_OFFSET(rmwCmpxchgOperation->src0Offset());
+            operands[1].item = nullptr;
+            operands[1].offset = STACK_OFFSET(rmwCmpxchgOperation->src1Offset());
+            operands[2].item = nullptr;
+            operands[2].offset = STACK_OFFSET(rmwCmpxchgOperation->src2Offset());
+            operands[3].item = nullptr;
+            operands[3].offset = STACK_OFFSET(rmwCmpxchgOperation->dstOffset());
             break;
         }
         case I64AtomicLoadOpcode:
@@ -303,8 +318,22 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I64AtomicRmw16CmpxchgUOpcode:
         case I64AtomicRmw32CmpxchgUOpcode: {
             group = Instruction::Atomic;
-            // TODO: handle paramCount = 3 cases (the code below only handles 1 and 2)
             paramCount = 3;
+
+            Instruction* instr = compiler->append(byteCode, group, opcode, 3, 1);
+            instr->addInfo(info);
+
+            AtomicCmpxchg* rmwCmpxchgOperation = reinterpret_cast<AtomicCmpxchg*>(byteCode);
+            Operand* operands = instr->operands();
+
+            operands[0].item = nullptr;
+            operands[0].offset = STACK_OFFSET(rmwCmpxchgOperation->src0Offset());
+            operands[1].item = nullptr;
+            operands[1].offset = STACK_OFFSET(rmwCmpxchgOperation->src1Offset());
+            operands[2].item = nullptr;
+            operands[2].offset = STACK_OFFSET(rmwCmpxchgOperation->src2Offset());
+            operands[3].item = nullptr;
+            operands[3].offset = STACK_OFFSET(rmwCmpxchgOperation->dstOffset());
             break;
         }
         case I32ClzOpcode:

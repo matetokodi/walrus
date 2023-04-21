@@ -1023,11 +1023,12 @@ protected:
 
 class AtomicRmw : public ByteCode {
 public:
-    AtomicRmw(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1)
+    AtomicRmw(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1, ByteCodeStackOffset dst)
         : ByteCode(opcode)
         , m_offset(offset)
         , m_src0Offset(src0)
         , m_src1Offset(src1)
+        , m_dstOffset(dst)
     {
     }
 
@@ -1038,6 +1039,7 @@ public:
 
     ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
     ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
+    ByteCodeStackOffset dstOffset() const { return m_dstOffset; }
 
 #if !defined(NDEBUG)
     virtual size_t byteCodeSize()
@@ -1049,6 +1051,7 @@ public:
     {
         DUMP_BYTECODE_OFFSET(src0Offset);
         DUMP_BYTECODE_OFFSET(src1Offset);
+        DUMP_BYTECODE_OFFSET(dstOffset);
         printf("offset: %" PRIu32, m_offset);
     }
 #endif
@@ -1056,16 +1059,18 @@ protected:
     uint32_t m_offset;
     ByteCodeStackOffset m_src0Offset;
     ByteCodeStackOffset m_src1Offset;
+    ByteCodeStackOffset m_dstOffset;
 };
 
 class AtomicCmpxchg : public ByteCode {
 public:
-    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1, ByteCodeStackOffset src2)
+    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1, ByteCodeStackOffset src2, ByteCodeStackOffset dst)
         : ByteCode(opcode)
         , m_offset(offset)
         , m_src0Offset(src0)
         , m_src1Offset(src1)
         , m_src2Offset(src2)
+        , m_dstOffset(dst)
     {
     }
 
@@ -1077,6 +1082,7 @@ public:
     ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
     ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
     ByteCodeStackOffset src2Offset() const { return m_src2Offset; }
+    ByteCodeStackOffset dstOffset() const { return m_dstOffset; }
 
 #if !defined(NDEBUG)
     virtual size_t byteCodeSize()
@@ -1088,6 +1094,7 @@ public:
     {
         DUMP_BYTECODE_OFFSET(src0Offset);
         DUMP_BYTECODE_OFFSET(src1Offset);
+        DUMP_BYTECODE_OFFSET(dstOffset);
         printf("offset: %" PRIu32, m_offset);
     }
 #endif
@@ -1096,6 +1103,7 @@ protected:
     ByteCodeStackOffset m_src0Offset;
     ByteCodeStackOffset m_src1Offset;
     ByteCodeStackOffset m_src2Offset;
+    ByteCodeStackOffset m_dstOffset;
 };
 
 class TableGet : public ByteCode {

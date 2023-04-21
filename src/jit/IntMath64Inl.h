@@ -440,13 +440,8 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R3, 0, args[1].arg, args[1].argw);
         sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
 
-        // swap values in R3 and ATOMIC_DATA_REG https://en.wikipedia.org/wiki/XOR_swap_algorithm
-        sljit_emit_op2(compiler, SLJIT_XOR, SLJIT_R3, 0, SLJIT_R3, 0, ATOMIC_DATA_REG, 0);
-        sljit_emit_op2(compiler, SLJIT_XOR, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, SLJIT_R3, 0);
-        sljit_emit_op2(compiler, SLJIT_XOR, SLJIT_R3, 0, SLJIT_R3, 0, ATOMIC_DATA_REG, 0);
-
-        sljit_emit_atomic_store(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
-        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, SLJIT_R3, 0);
+        sljit_emit_atomic_store(compiler, operation_size, SLJIT_R3, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
+        sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg, args[2].argw, ATOMIC_DATA_REG, 0);
         break;
     }
     case I32AtomicRmwCmpxchgOpcode:

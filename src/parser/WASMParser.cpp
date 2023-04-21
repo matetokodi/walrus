@@ -1568,7 +1568,8 @@ public:
         auto src1 = popVMStack();
         ASSERT(Walrus::ByteCodeInfo::byteCodeTypeToMemorySize(Walrus::g_byteCodeInfo[code].m_paramTypes[0]) == peekVMStackSize());
         auto src0 = popVMStack();
-        pushByteCode(Walrus::AtomicRmw(code, offset, src0, src1));
+        auto dst = pushVMStack(Walrus::ByteCodeInfo::byteCodeTypeToMemorySize(Walrus::g_byteCodeInfo[code].m_resultType));
+        pushByteCode(Walrus::AtomicRmw(code, offset, src0, src1, dst));
     }
 
     virtual void OnAtomicCmpxchgExpr(int opcode, Index memidx, Address alignmentLog2, Address offset) override
@@ -1580,7 +1581,8 @@ public:
         auto src1 = popVMStack();
         ASSERT(Walrus::ByteCodeInfo::byteCodeTypeToMemorySize(Walrus::g_byteCodeInfo[code].m_paramTypes[0]) == peekVMStackSize());
         auto src0 = popVMStack();
-        pushByteCode(Walrus::AtomicCmpxchg(code, offset, src0, src1, src2));
+        auto dst = pushVMStack(Walrus::ByteCodeInfo::byteCodeTypeToMemorySize(Walrus::g_byteCodeInfo[code].m_resultType));
+        pushByteCode(Walrus::AtomicCmpxchg(code, offset, src0, src1, src2, dst));
     }
 
     virtual void OnRefFuncExpr(Index func_index) override
