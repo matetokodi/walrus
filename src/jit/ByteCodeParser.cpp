@@ -226,7 +226,22 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         }
         case I32AtomicStoreOpcode:
         case I32AtomicStore8Opcode:
-        case I32AtomicStore16Opcode:
+        case I32AtomicStore16Opcode: {
+            group = Instruction::Atomic;
+            info = Instruction::kIs32Bit;
+
+            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 1);
+            instr->addInfo(info);
+
+            AtomicStore* atomicStoreOperation = reinterpret_cast<AtomicStore*>(byteCode);
+            Operand* operands = instr->operands();
+
+            operands[0].item = nullptr;
+            operands[0].offset = STACK_OFFSET(atomicStoreOperation->src0Offset());
+            operands[1].item = nullptr;
+            operands[1].offset = STACK_OFFSET(atomicStoreOperation->src1Offset());
+            break;
+        }
         case I32AtomicRmwAddOpcode:
         case I32AtomicRmw8AddUOpcode:
         case I32AtomicRmw16AddUOpcode:
@@ -246,8 +261,20 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I32AtomicRmw8XchgUOpcode:
         case I32AtomicRmw16XchgUOpcode: {
             group = Instruction::Atomic;
-            paramCount = 2;
             info = Instruction::kIs32Bit;
+
+            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 1);
+            instr->addInfo(info);
+
+            AtomicRmw* atomicRmwOperation = reinterpret_cast<AtomicRmw*>(byteCode);
+            Operand* operands = instr->operands();
+
+            operands[0].item = nullptr;
+            operands[0].offset = STACK_OFFSET(atomicRmwOperation->srcOffset()[0]);
+            operands[1].item = nullptr;
+            operands[1].offset = STACK_OFFSET(atomicRmwOperation->srcOffset()[1]);
+            operands[2].item = nullptr;
+            operands[2].offset = STACK_OFFSET(atomicRmwOperation->dstOffset());
             break;
         }
         case I32AtomicRmwCmpxchgOpcode:
@@ -284,7 +311,22 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I64AtomicStoreOpcode:
         case I64AtomicStore8Opcode:
         case I64AtomicStore16Opcode:
-        case I64AtomicStore32Opcode:
+        case I64AtomicStore32Opcode: {
+            group = Instruction::Atomic;
+            info = Instruction::kIs32Bit;
+
+            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 1);
+            instr->addInfo(info);
+
+            AtomicStore* atomicStoreOperation = reinterpret_cast<AtomicStore*>(byteCode);
+            Operand* operands = instr->operands();
+
+            operands[0].item = nullptr;
+            operands[0].offset = STACK_OFFSET(atomicStoreOperation->src0Offset());
+            operands[1].item = nullptr;
+            operands[1].offset = STACK_OFFSET(atomicStoreOperation->src1Offset());
+            break;
+        }
         case I64AtomicRmwAddOpcode:
         case I64AtomicRmw8AddUOpcode:
         case I64AtomicRmw16AddUOpcode:
