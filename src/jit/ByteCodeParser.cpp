@@ -264,11 +264,11 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
             Operand* operands = instr->operands();
 
             operands[0].item = nullptr;
-            operands[0].offset = STACK_OFFSET(rmwCmpxchgOperation->src0Offset());
+            operands[0].offset = STACK_OFFSET(rmwCmpxchgOperation->srcOffset()[0]);
             operands[1].item = nullptr;
-            operands[1].offset = STACK_OFFSET(rmwCmpxchgOperation->src1Offset());
+            operands[1].offset = STACK_OFFSET(rmwCmpxchgOperation->srcOffset()[1]);
             operands[2].item = nullptr;
-            operands[2].offset = STACK_OFFSET(rmwCmpxchgOperation->src2Offset());
+            operands[2].offset = STACK_OFFSET(rmwCmpxchgOperation->srcOffset()[2]);
             operands[3].item = nullptr;
             operands[3].offset = STACK_OFFSET(rmwCmpxchgOperation->dstOffset());
             break;
@@ -310,7 +310,19 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I64AtomicRmw16XchgUOpcode:
         case I64AtomicRmw32XchgUOpcode: {
             group = Instruction::Atomic;
-            paramCount = 2;
+
+            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 1);
+            instr->addInfo(info);
+
+            AtomicRmw* atomicRmwOperation = reinterpret_cast<AtomicRmw*>(byteCode);
+            Operand* operands = instr->operands();
+
+            operands[0].item = nullptr;
+            operands[0].offset = STACK_OFFSET(atomicRmwOperation->srcOffset()[0]);
+            operands[1].item = nullptr;
+            operands[1].offset = STACK_OFFSET(atomicRmwOperation->srcOffset()[1]);
+            operands[2].item = nullptr;
+            operands[2].offset = STACK_OFFSET(atomicRmwOperation->dstOffset());
             break;
         }
         case I64AtomicRmwCmpxchgOpcode:
@@ -327,11 +339,11 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
             Operand* operands = instr->operands();
 
             operands[0].item = nullptr;
-            operands[0].offset = STACK_OFFSET(rmwCmpxchgOperation->src0Offset());
+            operands[0].offset = STACK_OFFSET(rmwCmpxchgOperation->srcOffset()[0]);
             operands[1].item = nullptr;
-            operands[1].offset = STACK_OFFSET(rmwCmpxchgOperation->src1Offset());
+            operands[1].offset = STACK_OFFSET(rmwCmpxchgOperation->srcOffset()[1]);
             operands[2].item = nullptr;
-            operands[2].offset = STACK_OFFSET(rmwCmpxchgOperation->src2Offset());
+            operands[2].offset = STACK_OFFSET(rmwCmpxchgOperation->srcOffset()[2]);
             operands[3].item = nullptr;
             operands[3].offset = STACK_OFFSET(rmwCmpxchgOperation->dstOffset());
             break;

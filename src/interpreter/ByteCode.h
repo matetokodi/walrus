@@ -1023,12 +1023,11 @@ protected:
 
 class AtomicRmw : public ByteCode {
 public:
-    AtomicRmw(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1, ByteCodeStackOffset dst)
+    AtomicRmw(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0Offset, ByteCodeStackOffset src1Offset, ByteCodeStackOffset dstOffset)
         : ByteCode(opcode)
         , m_offset(offset)
-        , m_src0Offset(src0)
-        , m_src1Offset(src1)
-        , m_dstOffset(dst)
+        , m_srcOffset{ src0Offset, src1Offset }
+        , m_dstOffset(dstOffset)
     {
     }
 
@@ -1037,8 +1036,7 @@ public:
         return m_offset;
     }
 
-    ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
-    ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
+    const ByteCodeStackOffset* srcOffset() const { return m_srcOffset; }
     ByteCodeStackOffset dstOffset() const { return m_dstOffset; }
 
 #if !defined(NDEBUG)
@@ -1049,27 +1047,24 @@ public:
 
     virtual void dump(size_t pos)
     {
-        DUMP_BYTECODE_OFFSET(src0Offset);
-        DUMP_BYTECODE_OFFSET(src1Offset);
+        DUMP_BYTECODE_OFFSET(srcOffset[0]);
+        DUMP_BYTECODE_OFFSET(srcOffset[1]);
         DUMP_BYTECODE_OFFSET(dstOffset);
         printf("offset: %" PRIu32, m_offset);
     }
 #endif
 protected:
     uint32_t m_offset;
-    ByteCodeStackOffset m_src0Offset;
-    ByteCodeStackOffset m_src1Offset;
+    ByteCodeStackOffset m_srcOffset[2];
     ByteCodeStackOffset m_dstOffset;
 };
 
 class AtomicCmpxchg : public ByteCode {
 public:
-    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0, ByteCodeStackOffset src1, ByteCodeStackOffset src2, ByteCodeStackOffset dst)
+    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0Offset, ByteCodeStackOffset src1Offset, ByteCodeStackOffset src2Offset, ByteCodeStackOffset dst)
         : ByteCode(opcode)
         , m_offset(offset)
-        , m_src0Offset(src0)
-        , m_src1Offset(src1)
-        , m_src2Offset(src2)
+        , m_srcOffset{ src0Offset, src1Offset, src2Offset }
         , m_dstOffset(dst)
     {
     }
@@ -1079,9 +1074,7 @@ public:
         return m_offset;
     }
 
-    ByteCodeStackOffset src0Offset() const { return m_src0Offset; }
-    ByteCodeStackOffset src1Offset() const { return m_src1Offset; }
-    ByteCodeStackOffset src2Offset() const { return m_src2Offset; }
+    const ByteCodeStackOffset* srcOffset() const { return m_srcOffset; }
     ByteCodeStackOffset dstOffset() const { return m_dstOffset; }
 
 #if !defined(NDEBUG)
@@ -1092,17 +1085,16 @@ public:
 
     virtual void dump(size_t pos)
     {
-        DUMP_BYTECODE_OFFSET(src0Offset);
-        DUMP_BYTECODE_OFFSET(src1Offset);
+        DUMP_BYTECODE_OFFSET(srcOffset[0]);
+        DUMP_BYTECODE_OFFSET(srcOffset[1]);
+        DUMP_BYTECODE_OFFSET(srcOffset[2]);
         DUMP_BYTECODE_OFFSET(dstOffset);
         printf("offset: %" PRIu32, m_offset);
     }
 #endif
 protected:
     uint32_t m_offset;
-    ByteCodeStackOffset m_src0Offset;
-    ByteCodeStackOffset m_src1Offset;
-    ByteCodeStackOffset m_src2Offset;
+    ByteCodeStackOffset m_srcOffset[3];
     ByteCodeStackOffset m_dstOffset;
 };
 

@@ -6,6 +6,7 @@
 
       i32.const 0 i64.const 1   i64.atomic.rmw.xchg drop
       i32.const 0 i64.const 2   i64.atomic.rmw.xchg
+      ;; i64.const 3 i64.const 2 i64.add
     )
 
     ;; (func (export "test1") (result i64)
@@ -16,3 +17,4 @@
     ;; )
 )
 (assert_return (invoke "test1") (i64.const 1))
+;; (assert_return (invoke "test1") (i64.const 5))
