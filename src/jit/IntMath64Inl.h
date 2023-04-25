@@ -335,10 +335,11 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         break;
     }
 
-    // TODO: why is the value arg (arg[1] to add sub etc.) always 0x0? >>> the bytecodeparser has to put it in the right place >>> cannot use genric BinaryOperation for atomics in the bytecodeparser: use AtomicRmw and the like
-    // TODO: memory accesses do not seem to be working properly
-    // TODO: move memory from the compiler the context or module, because the compiler is freed before the jit code is run
-    // TODO: add checks and register reallocating for when the args are in the ATOMIC_X_REGs
+    // TODO: make the ByteCodeParser more compact, because the fully specific version is a bit long
+    // TODO: add retry jumps for when the store fails (like cmpxchg)
+    // TODO: 32 bit and callbacks
+    // TODO: maybe move memory from the compiler the context or module, because the compiler is freed before the jit code is run
+    // TODO: maybe add checks and register reallocating for when the args are in the ATOMIC_X_REGs
 
     sljit_emit_op0(compiler, SLJIT_BREAKPOINT);
 #if 1
