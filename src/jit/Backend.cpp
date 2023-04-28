@@ -26,7 +26,8 @@
 // Inlined platform independent assembler backend.
 #define SLJIT_CONFIG_AUTO 1
 #define SLJIT_CONFIG_STATIC 1
-#define SLJIT_VERBOSE 0
+// TODO: change this back to 0
+#define SLJIT_VERBOSE 1
 
 #if defined(NDEBUG)
 #define SLJIT_DEBUG 0
@@ -524,6 +525,10 @@ JITModule* JITCompiler::compile()
         }
         case Instruction::BinaryFloat: {
             emitFloatBinary(m_compiler, item->asInstruction());
+            break;
+        }
+        case Instruction::Atomic: {
+            emitAtomic(m_compiler, item->asInstruction());
             break;
         }
         case Instruction::Unary: {

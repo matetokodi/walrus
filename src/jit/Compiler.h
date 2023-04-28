@@ -62,6 +62,8 @@ public:
         Binary,
         // Binary float operation
         BinaryFloat,
+        // atomic operation (e.g. I32AtomicRmwAdd, I64AtomicRmw16OrU)
+        Atomic,
         // Unary operation (e.g. I32Ctz, U64Clz).
         Unary,
         // Unary float operation
@@ -406,12 +408,14 @@ public:
         , m_options(0)
     {
         computeOptions();
+        m_memoryPtr = new std::byte[64 * 1024]();
     }
 
     ~JITCompiler()
     {
         clear();
         releaseFunctionList();
+        delete[] m_memoryPtr;
     }
 
     int verboseLevel() { return m_verboseLevel; }
@@ -443,6 +447,8 @@ public:
 
     void buildParamDependencies(uint32_t requiredStackSize);
     JITModule* compile();
+
+    std::byte* memoryPtr() { return m_memoryPtr; }
 
     Label* getFunctionEntry(size_t i) { return m_functionList[i].entryLabel; }
 
@@ -485,6 +491,8 @@ private:
     size_t m_branchTableSize;
     int m_verboseLevel;
     uint32_t m_options;
+    // TODO: this probably should not be here but in the context or module
+    std::byte* m_memoryPtr;
 
     std::vector<FunctionList> m_functionList;
 };
