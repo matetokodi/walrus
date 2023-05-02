@@ -748,7 +748,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         case I32AtomicStore16Opcode: {
             struct sljit_label* store_failure = sljit_emit_label(compiler);
             /* NOTE: on some architectures storing without a load to lock the memory will cause the store to always fail. */
-            // sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG); // but this would overwrite any changes to the data
+            sljit_emit_atomic_load(compiler, operation_size, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG); // but this would overwrite any changes to the data
             sljit_emit_op1(compiler, SLJIT_MOV, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
             sljit_emit_atomic_store(compiler, operation_size | SLJIT_SET_ATOMIC_STORED, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
             sljit_set_label(sljit_emit_jump(compiler, SLJIT_ATOMIC_NOT_STORED), store_failure);
@@ -821,6 +821,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         sljit_set_label(sljit_emit_jump(compiler, SLJIT_ATOMIC_NOT_STORED), store_failure);
         return;
     }
+#if 0
     JITArgPair args[instr->paramCount() + instr->resultCount()];
 
     for (unsigned int i = 0; i < instr->paramCount() + instr->resultCount(); ++i) {
@@ -884,7 +885,6 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
         RELEASE_ASSERT_NOT_REACHED();
         break;
     }
-
     //    sljit_emit_op0(compiler, SLJIT_BREAKPOINT);
     sljit_emit_op2(compiler, SLJIT_ADD, ATOMIC_MEM_REG, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg, args[0].argw);
 
@@ -981,6 +981,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     sljit_emit_op2(compiler, operation, ATOMIC_DATA_REG, 0, ATOMIC_DATA_REG, 0, args[1].arg, args[1].argw);
     sljit_emit_atomic_store(compiler, operation_size | SLJIT_SET_ATOMIC_STORED, ATOMIC_DATA_REG, ATOMIC_MEM_REG, ATOMIC_TEMP_REG);
     sljit_set_label(sljit_emit_jump(compiler, SLJIT_ATOMIC_NOT_STORED), store_failure);
+#endif
     return;
 }
 
