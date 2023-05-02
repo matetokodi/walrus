@@ -230,7 +230,7 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
             group = Instruction::Atomic;
             info = Instruction::kIs32Bit;
 
-            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 1);
+            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 0);
             instr->addInfo(info);
 
             AtomicStore* atomicStoreOperation = reinterpret_cast<AtomicStore*>(byteCode);
@@ -315,7 +315,7 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
             group = Instruction::Atomic;
             info = Instruction::kIs32Bit;
 
-            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 1);
+            Instruction* instr = compiler->append(byteCode, group, opcode, 2, 0);
             instr->addInfo(info);
 
             AtomicStore* atomicStoreOperation = reinterpret_cast<AtomicStore*>(byteCode);
