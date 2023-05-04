@@ -674,6 +674,8 @@ static void emitBinary(sljit_compiler* compiler, Instruction* instr)
 #define SIZE_MASK_32 0xffffffff
 #define SIZE_MASK_16 0xffff
 #define SIZE_MASK_8 0xff
+#define OP_XCHG SLJIT_OP2_BASE + 16
+#define OP_CMPXCHG SLJIT_OP2_BASE + 17
 
 static int64_t atomicRmwGenericLoad64(std::atomic<int64_t>& shared, int64_t modify_mask)
 {
@@ -705,6 +707,9 @@ static int64_t atomicRmwGeneric64(std::atomic<int64_t>& shared, int64_t value, i
         break;
     case SLJIT_XOR:
         newValue = MODIFY_SIZE_CONSTRAINT(oldValue, ^, value, modify_mask);
+        break;
+    case OP_XCHG:
+        newValue = value;
         break;
     }
     while (!shared.compare_exchange_weak(oldValue, newValue)) {}
@@ -851,6 +856,26 @@ static int64_t atomicRmw16Xor64(std::atomic<int64_t>& shared, int64_t value)
 static int64_t atomicRmw32Xor64(std::atomic<int64_t>& shared, int64_t value)
 {
     return atomicRmwGeneric64(shared, value, SIZE_MASK_32, SLJIT_XOR);
+}
+
+static int64_t atomicRmw64Xchg64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_64, OP_XCHG);
+}
+
+static int64_t atomicRmw8Xchg64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_8, OP_XCHG);
+}
+
+static int64_t atomicRmw16Xchg64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_16, OP_XCHG);
+}
+
+static int64_t atomicRmw32Xchg64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_32, OP_XCHG);
 }
 
 static void emitAtomicLoad64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
@@ -1011,6 +1036,22 @@ static void emitAtomicRmw64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPa
         addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Xor64);
         break;
     }
+    case I64AtomicRmwXchgOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Xchg64);
+        break;
+    }
+    case I64AtomicRmw8XchgUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Xchg64);
+        break;
+    }
+    case I64AtomicRmw16XchgUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Xchg64);
+        break;
+    }
+    case I64AtomicRmw32XchgUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Xchg64);
+        break;
+    }
     }
 
     sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0); // shared mem addr
@@ -1026,15 +1067,19 @@ static void emitAtomicCmpxchg64(sljit_compiler* compiler, sljit_s32 opcode, JITA
     CompileContext* context = CompileContext::get(compiler);
     //    reinterpret_cast<sljit_sw>((context->compiler->memoryPtr()))
 }
+#undef SIZE_MASK_64
+#undef SIZE_MASK_32
+#undef SIZE_MASK_16
+#undef SIZE_MASK_8
+#undef OP_XCHG
+#undef OP_CMPXCHG
 
-// TODO: implement atomic instructions for 32 bit
 #define ATOMIC_DATA_REG SLJIT_R0
 #define ATOMIC_MEM_REG SLJIT_R1
 #define ATOMIC_TEMP_REG SLJIT_R2
 
 static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
 {
-    // TODO: implement atomics on 32 bit (use callbacks for 64 bit sized operations)
     CompileContext* context = CompileContext::get(compiler);
     Operand* operands = instr->operands();
 
@@ -1278,10 +1323,7 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmwXorOpcode:
     case I64AtomicRmw8XorUOpcode:
     case I64AtomicRmw16XorUOpcode:
-    case I64AtomicRmw32XorUOpcode: {
-        emitAtomicRmw64(compiler, instr->opcode(), args);
-        break;
-    }
+    case I64AtomicRmw32XorUOpcode:
     case I64AtomicRmwXchgOpcode:
     case I64AtomicRmw8XchgUOpcode:
     case I64AtomicRmw16XchgUOpcode:
