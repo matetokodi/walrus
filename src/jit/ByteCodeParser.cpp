@@ -21,7 +21,6 @@
 #include "runtime/JITExec.h"
 #include "runtime/Module.h"
 
-#include <cstdio>
 #include <map>
 
 namespace Walrus {

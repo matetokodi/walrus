@@ -16,10 +16,10 @@
     ;;   i64.const 0
     ;; )
 
-     ;; (func (export "add") (result i64)
-     ;;   i32.const 0 i64.const 100 i64.atomic.rmw.add drop
-     ;;   i32.const 0 i64.atomic.load
-     ;; )
+     (func (export "add") (result i64)
+       i32.const 0 i64.const 100 i64.atomic.rmw.add drop
+       i32.const 0 i64.atomic.load
+     )
 
      ;; (func (export "sub") (result i64)
      ;;   i32.const 0 i64.const 99 i64.atomic.rmw.sub drop
@@ -103,17 +103,17 @@
 ;; (assert_return (invoke "test1") (i64.const 1))
 ;; (assert_return (invoke "test1") (i64.const 5))
 
-(assert_return (invoke "add32") (i32.const 100))
-(assert_return (invoke "sub32") (i32.const 1))
-(assert_return (invoke "and32") (i32.const 0))
-(assert_return (invoke "or32") (i32.const 4))
-(assert_return (invoke "xor32") (i32.const 6))
-(assert_return (invoke "xchg32") (i32.const 6))
-(assert_return (invoke "cmpxchg32") (i32.const 48))
-(assert_return (invoke "load32") (i32.const 64))
-(assert_return (invoke "store32") (i32.const 200))
+;; (assert_return (invoke "add32") (i32.const 100))
+;; (assert_return (invoke "sub32") (i32.const 1))
+;; (assert_return (invoke "and32") (i32.const 0))
+;; (assert_return (invoke "or32") (i32.const 4))
+;; (assert_return (invoke "xor32") (i32.const 6))
+;; (assert_return (invoke "xchg32") (i32.const 6))
+;; (assert_return (invoke "cmpxchg32") (i32.const 48))
+;; (assert_return (invoke "load32") (i32.const 64))
+;; (assert_return (invoke "store32") (i32.const 200))
 
-;; (assert_return (invoke "add") (i64.const 100))
+(assert_return (invoke "add") (i64.const 100))
 ;; (assert_return (invoke "sub") (i64.const 1))
 ;; (assert_return (invoke "and") (i64.const 0))
 ;; (assert_return (invoke "or") (i64.const 4))

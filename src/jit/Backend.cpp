@@ -21,6 +21,7 @@
 
 #include <math.h>
 #include <map>
+#include <atomic>
 
 // Inlined platform independent assembler backend.
 #define SLJIT_CONFIG_AUTO 1
