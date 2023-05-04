@@ -119,6 +119,6 @@
 (assert_return (invoke "or") (i64.const 4))
 (assert_return (invoke "xor") (i64.const 6))
 (assert_return (invoke "xchg") (i64.const 6))
-;; (assert_return (invoke "cmpxchg") (i64.const 48))
+(assert_return (invoke "cmpxchg") (i64.const 48))
 (assert_return (invoke "load") (i64.const 64))
 (assert_return (invoke "store") (i64.const 200))

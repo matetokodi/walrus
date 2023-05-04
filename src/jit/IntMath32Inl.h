@@ -16,6 +16,8 @@
 
 /* Only included by jit-backend.cc */
 
+#include "sljitLir.h"
+#include <cstdint>
 struct JITArgPair {
     sljit_s32 arg1;
     sljit_sw arg1w;
@@ -668,8 +670,8 @@ static void emitBinary(sljit_compiler* compiler, Instruction* instr)
     }
 }
 
-//    while (!shared.compare_exchange_weak(oldValue, (oldValue & (~(0xff))) | (0xff & (oldValue + value)))) {}
 #define MODIFY_SIZE_CONSTRAINT(old, op, modify, size) (old & (~(size))) | (size & (old op modify))
+#define MODIFY_SIZE_CONSTRAINT_XCHG(oldVal, newVal, size) ((oldVal & ~size) | (newVal & size))
 #define SIZE_MASK_64 0xffffffffffffffff
 #define SIZE_MASK_32 0xffffffff
 #define SIZE_MASK_16 0xffff
@@ -709,31 +711,39 @@ static int64_t atomicRmwGeneric64(std::atomic<int64_t>& shared, int64_t value, i
         newValue = MODIFY_SIZE_CONSTRAINT(oldValue, ^, value, modify_mask);
         break;
     case OP_XCHG:
-        newValue = value;
+        newValue = MODIFY_SIZE_CONSTRAINT_XCHG(oldValue, value, modify_mask);
         break;
     }
     while (!shared.compare_exchange_weak(oldValue, newValue)) {}
     return oldValue;
 }
 
-#undef MODIFY_SIZE_CONSTRAINT
+static int64_t atomicRmwGenericCmpxchg64(std::atomic<int64_t>& shared, int64_t oldValue, int64_t newValue, int64_t modify_mask)
+{
+    int64_t originalMemValue = shared.load(std::memory_order_relaxed);
+    while (!shared.compare_exchange_weak(oldValue, MODIFY_SIZE_CONSTRAINT_XCHG(originalMemValue, newValue, modify_mask))) {}
+    return originalMemValue;
+}
 
-static int64_t atomicRmw64Load64(std::atomic<int64_t>& shared, int64_t value)
+#undef MODIFY_SIZE_CONSTRAINT
+#undef MODIFY_SIZE_CONSTRAINT_XCHG
+
+static int64_t atomicRmw64Load64(std::atomic<int64_t>& shared)
 {
     return atomicRmwGenericLoad64(shared, SIZE_MASK_64);
 }
 
-static int64_t atomicRmw8Load64(std::atomic<int64_t>& shared, int64_t value)
+static int64_t atomicRmw8Load64(std::atomic<int64_t>& shared)
 {
     return atomicRmwGenericLoad64(shared, SIZE_MASK_8);
 }
 
-static int64_t atomicRmw16Load64(std::atomic<int64_t>& shared, int64_t value)
+static int64_t atomicRmw16Load64(std::atomic<int64_t>& shared)
 {
     return atomicRmwGenericLoad64(shared, SIZE_MASK_16);
 }
 
-static int64_t atomicRmw32Load64(std::atomic<int64_t>& shared, int64_t value)
+static int64_t atomicRmw32Load64(std::atomic<int64_t>& shared)
 {
     return atomicRmwGenericLoad64(shared, SIZE_MASK_32);
 }
@@ -878,13 +888,33 @@ static int64_t atomicRmw32Xchg64(std::atomic<int64_t>& shared, int64_t value)
     return atomicRmwGeneric64(shared, value, SIZE_MASK_32, OP_XCHG);
 }
 
+static int64_t atomicRmw64Cmpxchg64(std::atomic<int64_t>& shared, int64_t* originalValue, int64_t* newValue)
+{
+    return atomicRmwGenericCmpxchg64(shared, *originalValue, *newValue, SIZE_MASK_64);
+}
+
+static int64_t atomicRmw8Cmpxchg64(std::atomic<int64_t>& shared, int64_t* originalValue, int64_t* newValue)
+{
+    return atomicRmwGenericCmpxchg64(shared, *originalValue, *newValue, SIZE_MASK_8);
+}
+
+static int64_t atomicRmw16Cmpxchg64(std::atomic<int64_t>& shared, int64_t* originalValue, int64_t* newValue)
+{
+    return atomicRmwGenericCmpxchg64(shared, *originalValue, *newValue, SIZE_MASK_16);
+}
+
+static int64_t atomicRmw32Cmpxchg64(std::atomic<int64_t>& shared, int64_t* originalValue, int64_t* newValue)
+{
+    return atomicRmwGenericCmpxchg64(shared, *originalValue, *newValue, SIZE_MASK_32);
+}
+
 static void emitAtomicLoad64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
 {
     CompileContext* context = CompileContext::get(compiler);
 
     sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
 
-    sljit_s32 type = SLJIT_ARGS3(VOID, P, P, P);
+    sljit_s32 type = SLJIT_ARGS3(W, P, W, W);
     sljit_s32 addr;
 
     switch (opcode) {
@@ -906,7 +936,7 @@ static void emitAtomicLoad64(sljit_compiler* compiler, sljit_s32 opcode, JITArgP
     }
     }
 
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0); // shared mem addr
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
     sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
     sljit_emit_op1(compiler, SLJIT_MOV, args[1].arg1, args[1].arg1w, SLJIT_R0, 0);
     sljit_emit_op1(compiler, SLJIT_MOV, args[1].arg2, args[1].arg2w, SLJIT_R1, 0);
@@ -940,9 +970,9 @@ static void emitAtomicStore64(sljit_compiler* compiler, sljit_s32 opcode, JITArg
     }
     }
 
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0); // shared mem addr
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, args[1].arg1, args[1].arg1w); // value to operate with
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R2, 0, args[1].arg2, args[1].arg2w); // value to operate with
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, args[1].arg1, args[1].arg1w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R2, 0, args[1].arg2, args[1].arg2w);
     sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
 }
 
@@ -952,7 +982,7 @@ static void emitAtomicRmw64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPa
 
     sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
 
-    sljit_s32 type = SLJIT_ARGS3(VOID, P, P, P);
+    sljit_s32 type = SLJIT_ARGS3(W, P, W, W);
     sljit_s32 addr;
 
     switch (opcode) {
@@ -1054,18 +1084,66 @@ static void emitAtomicRmw64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPa
     }
     }
 
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0); // shared mem addr
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, args[1].arg1, args[1].arg1w); // value to operate with
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R2, 0, args[1].arg2, args[1].arg2w); // value to operate with
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, args[1].arg1, args[1].arg1w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R2, 0, args[1].arg2, args[1].arg2w);
     sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
     sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg1, args[2].arg1w, SLJIT_R0, 0);
     sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg2, args[2].arg2w, SLJIT_R1, 0);
 }
 
+static int64_t* allocateCmpxchgMem()
+{
+    return new int64_t[2];
+}
+
+static void freeCmpxchgMem(int64_t* arr)
+{
+    delete[] arr;
+}
+
 static void emitAtomicCmpxchg64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
 {
     CompileContext* context = CompileContext::get(compiler);
-    //    reinterpret_cast<sljit_sw>((context->compiler->memoryPtr()))
+
+    sljit_s32 type = SLJIT_ARGS3(W, P, P, P);
+    sljit_s32 addr;
+
+    switch (opcode) {
+    case I64AtomicRmwCmpxchgOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Cmpxchg64);
+        break;
+    }
+    case I64AtomicRmw8CmpxchgUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Cmpxchg64);
+        break;
+    }
+    case I64AtomicRmw16CmpxchgUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Cmpxchg64);
+        break;
+    }
+    case I64AtomicRmw32CmpxchgUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Cmpxchg64);
+        break;
+    }
+    }
+
+    sljit_emit_icall(compiler, SLJIT_CALL, SLJIT_ARGS0(P), SLJIT_IMM, GET_FUNC_ADDR(sljit_sw, allocateCmpxchgMem));
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 0, args[1].arg1, args[1].arg1w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 4, args[1].arg2, args[1].arg2w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 8, args[2].arg1, args[2].arg1w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 12, args[2].arg2, args[2].arg2w);
+
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), 0, SLJIT_R0, 0);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, SLJIT_R0, 0);
+    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 8);
+    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
+    sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
+    sljit_emit_op1(compiler, SLJIT_MOV, args[3].arg1, args[3].arg1w, SLJIT_R0, 0);
+    sljit_emit_op1(compiler, SLJIT_MOV, args[3].arg2, args[3].arg2w, SLJIT_R1, 0);
+
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_SP), 0);
+    sljit_emit_icall(compiler, SLJIT_CALL, SLJIT_ARGS1(VOID, W), SLJIT_IMM, GET_FUNC_ADDR(sljit_sw, freeCmpxchgMem));
 }
 #undef SIZE_MASK_64
 #undef SIZE_MASK_32
@@ -1234,60 +1312,6 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     sljit_s32 opcode;
     sljit_s32 operation_size = SLJIT_MOV;
     sljit_s32 operation = 0;
-
-    switch (instr->opcode()) {
-    case I64AtomicLoadOpcode:
-    case I64AtomicStoreOpcode:
-    case I64AtomicRmwAddOpcode:
-    case I64AtomicRmwSubOpcode:
-    case I64AtomicRmwAndOpcode:
-    case I64AtomicRmwOrOpcode:
-    case I64AtomicRmwXorOpcode:
-    case I64AtomicRmwXchgOpcode:
-    case I64AtomicRmwCmpxchgOpcode: {
-        operation_size = SLJIT_MOV;
-        break;
-    }
-    case I64AtomicLoad32UOpcode:
-    case I64AtomicStore32Opcode:
-    case I64AtomicRmw32AddUOpcode:
-    case I64AtomicRmw32SubUOpcode:
-    case I64AtomicRmw32AndUOpcode:
-    case I64AtomicRmw32OrUOpcode:
-    case I64AtomicRmw32XorUOpcode:
-    case I64AtomicRmw32XchgUOpcode:
-    case I64AtomicRmw32CmpxchgUOpcode: {
-        operation_size = SLJIT_MOV32;
-        break;
-    }
-    case I64AtomicLoad8UOpcode:
-    case I64AtomicStore8Opcode:
-    case I64AtomicRmw8AddUOpcode:
-    case I64AtomicRmw8SubUOpcode:
-    case I64AtomicRmw8AndUOpcode:
-    case I64AtomicRmw8OrUOpcode:
-    case I64AtomicRmw8XorUOpcode:
-    case I64AtomicRmw8XchgUOpcode:
-    case I64AtomicRmw8CmpxchgUOpcode: {
-        operation_size = SLJIT_MOV_U8;
-        break;
-    }
-    case I64AtomicLoad16UOpcode:
-    case I64AtomicStore16Opcode:
-    case I64AtomicRmw16AddUOpcode:
-    case I64AtomicRmw16SubUOpcode:
-    case I64AtomicRmw16AndUOpcode:
-    case I64AtomicRmw16OrUOpcode:
-    case I64AtomicRmw16XorUOpcode:
-    case I64AtomicRmw16XchgUOpcode:
-    case I64AtomicRmw16CmpxchgUOpcode: {
-        operation_size = SLJIT_MOV_U16;
-        break;
-    }
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        break;
-    }
 
     switch (instr->opcode()) {
     case I64AtomicLoadOpcode:
