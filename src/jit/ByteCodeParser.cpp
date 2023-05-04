@@ -312,7 +312,6 @@ static void createInstructionList(JITCompiler* compiler, ModuleFunction* functio
         case I64AtomicStore16Opcode:
         case I64AtomicStore32Opcode: {
             group = Instruction::Atomic;
-            info = Instruction::kIs32Bit;
 
             Instruction* instr = compiler->append(byteCode, group, opcode, 2, 0);
             instr->addInfo(info);

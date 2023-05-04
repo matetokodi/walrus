@@ -669,59 +669,263 @@ static void emitBinary(sljit_compiler* compiler, Instruction* instr)
 }
 
 //    while (!shared.compare_exchange_weak(oldValue, (oldValue & (~(0xff))) | (0xff & (oldValue + value)))) {}
-#define MODIFY_SIZE_CONSTRAINT(old, op, modify, size) (old & (~(size))) | (size & (old op modify)))
+#define MODIFY_SIZE_CONSTRAINT(old, op, modify, size) (old & (~(size))) | (size & (old op modify))
+#define SIZE_MASK_64 0xffffffffffffffff
+#define SIZE_MASK_32 0xffffffff
+#define SIZE_MASK_16 0xffff
+#define SIZE_MASK_8 0xff
 
-static int64_t atomicRmwGenericAdd64(std::atomic<int64_t>& shared, int64_t value, int64_t modify_mask)
+static int64_t atomicRmwGenericLoad64(std::atomic<int64_t>& shared, int64_t modify_mask)
+{
+    return shared.load(std::memory_order_relaxed) & modify_mask;
+}
+
+static void atomicRmwGenericStore64(std::atomic<int64_t>& shared, int64_t value, int64_t modify_mask)
 {
     int64_t oldValue = shared.load(std::memory_order_relaxed);
-    while (!shared.compare_exchange_weak(oldValue, MODIFY_SIZE_CONSTRAINT(oldValue, +, value, modify_mask)) {}
+    while (!shared.compare_exchange_weak(oldValue, (oldValue & ~modify_mask) | (value & modify_mask))) {}
+}
+
+static int64_t atomicRmwGeneric64(std::atomic<int64_t>& shared, int64_t value, int64_t modify_mask, sljit_s32 op)
+{
+    int64_t oldValue = shared.load(std::memory_order_relaxed);
+    int64_t newValue;
+    switch (op) {
+    case SLJIT_ADD:
+        newValue = MODIFY_SIZE_CONSTRAINT(oldValue, +, value, modify_mask);
+        break;
+    case SLJIT_SUB:
+        newValue = MODIFY_SIZE_CONSTRAINT(oldValue, -, value, modify_mask);
+        break;
+    case SLJIT_AND:
+        newValue = MODIFY_SIZE_CONSTRAINT(oldValue, &, value, modify_mask);
+        break;
+    case SLJIT_OR:
+        newValue = MODIFY_SIZE_CONSTRAINT(oldValue, |, value, modify_mask);
+        break;
+    case SLJIT_XOR:
+        newValue = MODIFY_SIZE_CONSTRAINT(oldValue, ^, value, modify_mask);
+        break;
+    }
+    while (!shared.compare_exchange_weak(oldValue, newValue)) {}
     return oldValue;
 }
 
 #undef MODIFY_SIZE_CONSTRAINT
 
+static int64_t atomicRmw64Load64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGenericLoad64(shared, SIZE_MASK_64);
+}
+
+static int64_t atomicRmw8Load64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGenericLoad64(shared, SIZE_MASK_8);
+}
+
+static int64_t atomicRmw16Load64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGenericLoad64(shared, SIZE_MASK_16);
+}
+
+static int64_t atomicRmw32Load64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGenericLoad64(shared, SIZE_MASK_32);
+}
+
+static void atomicRmw64Store64(std::atomic<int64_t>& shared, int64_t value)
+{
+    atomicRmwGenericStore64(shared, value, SIZE_MASK_64);
+}
+
+static void atomicRmw8Store64(std::atomic<int64_t>& shared, int64_t value)
+{
+    atomicRmwGenericStore64(shared, value, SIZE_MASK_8);
+}
+
+static void atomicRmw16Store64(std::atomic<int64_t>& shared, int64_t value)
+{
+    atomicRmwGenericStore64(shared, value, SIZE_MASK_16);
+}
+
+static void atomicRmw32Store64(std::atomic<int64_t>& shared, int64_t value)
+{
+    atomicRmwGenericStore64(shared, value, SIZE_MASK_32);
+}
+
 static int64_t atomicRmw64Add64(std::atomic<int64_t>& shared, int64_t value)
 {
-    return atomicRmwGenericAdd64(shared, value, 0xffffffffffffffff);
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_64, SLJIT_ADD);
 }
 
 static int64_t atomicRmw8Add64(std::atomic<int64_t>& shared, int64_t value)
 {
-    return atomicRmwGenericAdd64(shared, value, 0xff);
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_8, SLJIT_ADD);
 }
 
 static int64_t atomicRmw16Add64(std::atomic<int64_t>& shared, int64_t value)
 {
-    return atomicRmwGenericAdd64(shared, value, 0xffff);
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_16, SLJIT_ADD);
 }
 
 static int64_t atomicRmw32Add64(std::atomic<int64_t>& shared, int64_t value)
 {
-    return atomicRmwGenericAdd64(shared, value, 0xffffffff);
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_32, SLJIT_ADD);
+}
+
+static int64_t atomicRmw64Sub64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_64, SLJIT_SUB);
+}
+
+static int64_t atomicRmw8Sub64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_8, SLJIT_SUB);
+}
+
+static int64_t atomicRmw16Sub64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_16, SLJIT_SUB);
+}
+
+static int64_t atomicRmw32Sub64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_32, SLJIT_SUB);
+}
+
+static int64_t atomicRmw64And64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_64, SLJIT_AND);
+}
+
+static int64_t atomicRmw8And64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_8, SLJIT_AND);
+}
+
+static int64_t atomicRmw16And64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_16, SLJIT_AND);
+}
+
+static int64_t atomicRmw32And64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_32, SLJIT_AND);
+}
+
+static int64_t atomicRmw64Or64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_64, SLJIT_OR);
+}
+
+static int64_t atomicRmw8Or64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_8, SLJIT_OR);
+}
+
+static int64_t atomicRmw16Or64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_16, SLJIT_OR);
+}
+
+static int64_t atomicRmw32Or64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_32, SLJIT_OR);
+}
+
+static int64_t atomicRmw64Xor64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_64, SLJIT_XOR);
+}
+
+static int64_t atomicRmw8Xor64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_8, SLJIT_XOR);
+}
+
+static int64_t atomicRmw16Xor64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_16, SLJIT_XOR);
+}
+
+static int64_t atomicRmw32Xor64(std::atomic<int64_t>& shared, int64_t value)
+{
+    return atomicRmwGeneric64(shared, value, SIZE_MASK_32, SLJIT_XOR);
 }
 
 static void emitAtomicLoad64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
 {
     CompileContext* context = CompileContext::get(compiler);
-    //    reinterpret_cast<sljit_sw>((context->compiler->memoryPtr()))
+
+    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
+
+    sljit_s32 type = SLJIT_ARGS3(VOID, P, P, P);
+    sljit_s32 addr;
+
+    switch (opcode) {
+    case I64AtomicLoadOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Load64);
+        break;
+    }
+    case I64AtomicLoad8UOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Load64);
+        break;
+    }
+    case I64AtomicLoad16UOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Load64);
+        break;
+    }
+    case I64AtomicLoad32UOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Load64);
+        break;
+    }
+    }
+
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0); // shared mem addr
+    sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
+    sljit_emit_op1(compiler, SLJIT_MOV, args[1].arg1, args[1].arg1w, SLJIT_R0, 0);
+    sljit_emit_op1(compiler, SLJIT_MOV, args[1].arg2, args[1].arg2w, SLJIT_R1, 0);
 }
 
 static void emitAtomicStore64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
 {
     CompileContext* context = CompileContext::get(compiler);
-    //    reinterpret_cast<sljit_sw>((context->compiler->memoryPtr()))
+
+    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
+
+    sljit_s32 type = SLJIT_ARGS3(VOID, P, W, W);
+    sljit_s32 addr;
+
+    switch (opcode) {
+    case I64AtomicStoreOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Store64);
+        break;
+    }
+    case I64AtomicStore8Opcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Store64);
+        break;
+    }
+    case I64AtomicStore16Opcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Store64);
+        break;
+    }
+    case I64AtomicStore32Opcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Store64);
+        break;
+    }
+    }
+
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R2, 0); // shared mem addr
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, args[1].arg1, args[1].arg1w); // value to operate with
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R2, 0, args[1].arg2, args[1].arg2w); // value to operate with
+    sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
 }
 
 static void emitAtomicRmw64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
 {
     CompileContext* context = CompileContext::get(compiler);
-    int64_t oldValue;
 
-    sljit_emit_op0(compiler, SLJIT_BREAKPOINT);
     sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
-
-    // put everything in the right place
-    // call callback func
 
     sljit_s32 type = SLJIT_ARGS3(VOID, P, P, P);
     sljit_s32 addr;
@@ -741,6 +945,70 @@ static void emitAtomicRmw64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPa
     }
     case I64AtomicRmw32AddUOpcode: {
         addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Add64);
+        break;
+    }
+    case I64AtomicRmwSubOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Sub64);
+        break;
+    }
+    case I64AtomicRmw8SubUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Sub64);
+        break;
+    }
+    case I64AtomicRmw16SubUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Sub64);
+        break;
+    }
+    case I64AtomicRmw32SubUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Sub64);
+        break;
+    }
+    case I64AtomicRmwAndOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64And64);
+        break;
+    }
+    case I64AtomicRmw8AndUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8And64);
+        break;
+    }
+    case I64AtomicRmw16AndUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16And64);
+        break;
+    }
+    case I64AtomicRmw32AndUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32And64);
+        break;
+    }
+    case I64AtomicRmwOrOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Or64);
+        break;
+    }
+    case I64AtomicRmw8OrUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Or64);
+        break;
+    }
+    case I64AtomicRmw16OrUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Or64);
+        break;
+    }
+    case I64AtomicRmw32OrUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Or64);
+        break;
+    }
+    case I64AtomicRmwXorOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw64Xor64);
+        break;
+    }
+    case I64AtomicRmw8XorUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw8Xor64);
+        break;
+    }
+    case I64AtomicRmw16XorUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw16Xor64);
+        break;
+    }
+    case I64AtomicRmw32XorUOpcode: {
+        addr = GET_FUNC_ADDR(sljit_sw, atomicRmw32Xor64);
         break;
     }
     }
@@ -994,31 +1262,19 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     case I64AtomicRmwAddOpcode:
     case I64AtomicRmw8AddUOpcode:
     case I64AtomicRmw16AddUOpcode:
-    case I64AtomicRmw32AddUOpcode: {
-        emitAtomicRmw64(compiler, instr->opcode(), args);
-        break;
-    }
+    case I64AtomicRmw32AddUOpcode:
     case I64AtomicRmwSubOpcode:
     case I64AtomicRmw8SubUOpcode:
     case I64AtomicRmw16SubUOpcode:
-    case I64AtomicRmw32SubUOpcode: {
-        emitAtomicRmw64(compiler, instr->opcode(), args);
-        break;
-    }
+    case I64AtomicRmw32SubUOpcode:
     case I64AtomicRmwAndOpcode:
     case I64AtomicRmw8AndUOpcode:
     case I64AtomicRmw16AndUOpcode:
-    case I64AtomicRmw32AndUOpcode: {
-        emitAtomicRmw64(compiler, instr->opcode(), args);
-        break;
-    }
+    case I64AtomicRmw32AndUOpcode:
     case I64AtomicRmwOrOpcode:
     case I64AtomicRmw8OrUOpcode:
     case I64AtomicRmw16OrUOpcode:
-    case I64AtomicRmw32OrUOpcode: {
-        emitAtomicRmw64(compiler, instr->opcode(), args);
-        break;
-    }
+    case I64AtomicRmw32OrUOpcode:
     case I64AtomicRmwXorOpcode:
     case I64AtomicRmw8XorUOpcode:
     case I64AtomicRmw16XorUOpcode:
