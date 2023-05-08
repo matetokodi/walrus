@@ -337,7 +337,6 @@ static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
     }
 
     // TODO: make the ByteCodeParser more compact, because the fully specific version is a bit long
-    // TODO: 32 bit and callbacks
     // TODO: maybe move memory from the compiler the context or module, because the compiler is freed before the jit code is run
     // TODO: maybe add checks and register reallocating for when the args are in the ATOMIC_X_REGs
 

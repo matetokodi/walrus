@@ -670,14 +670,14 @@ static void emitBinary(sljit_compiler* compiler, Instruction* instr)
     }
 }
 
-#define MODIFY_SIZE_CONSTRAINT(old, op, modify, size) (old & (~(size))) | (size & (old op modify))
-#define MODIFY_SIZE_CONSTRAINT_XCHG(oldVal, newVal, size) ((oldVal & ~size) | (newVal & size))
+#define MODIFY_SIZE_CONSTRAINT(old, op, modify, size) (((old) & (~(size))) | ((size) & (old op modify)))
+#define MODIFY_SIZE_CONSTRAINT_XCHG(oldVal, newVal, size) (((oldVal) & ~(size)) | ((newVal) & (size)))
 #define SIZE_MASK_64 0xffffffffffffffff
 #define SIZE_MASK_32 0xffffffff
 #define SIZE_MASK_16 0xffff
 #define SIZE_MASK_8 0xff
-#define OP_XCHG SLJIT_OP2_BASE + 16
-#define OP_CMPXCHG SLJIT_OP2_BASE + 17
+#define OP_XCHG (SLJIT_OP2_BASE + 16)
+#define OP_CMPXCHG (SLJIT_OP2_BASE + 17)
 
 static int64_t atomicRmwGenericLoad64(std::atomic<int64_t>& shared, int64_t modify_mask)
 {
