@@ -1092,16 +1092,6 @@ static void emitAtomicRmw64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPa
     sljit_emit_op1(compiler, SLJIT_MOV, args[2].arg2, args[2].arg2w, SLJIT_R1, 0);
 }
 
-static int64_t* allocateCmpxchgMem()
-{
-    return new int64_t[2];
-}
-
-static void freeCmpxchgMem(int64_t* arr)
-{
-    delete[] arr;
-}
-
 static void emitAtomicCmpxchg64(sljit_compiler* compiler, sljit_s32 opcode, JITArgPair* args)
 {
     CompileContext* context = CompileContext::get(compiler);
@@ -1128,22 +1118,18 @@ static void emitAtomicCmpxchg64(sljit_compiler* compiler, sljit_s32 opcode, JITA
     }
     }
 
-    sljit_emit_icall(compiler, SLJIT_CALL, SLJIT_ARGS0(P), SLJIT_IMM, GET_FUNC_ADDR(sljit_sw, allocateCmpxchgMem));
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 0, args[1].arg1, args[1].arg1w);
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 4, args[1].arg2, args[1].arg2w);
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 8, args[2].arg1, args[2].arg1w);
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_R0), 12, args[2].arg2, args[2].arg2w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(kContextReg), OffsetOfContextField(tmp1) + WORD_LOW_OFFSET, args[1].arg1, args[1].arg1w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(kContextReg), OffsetOfContextField(tmp1) + WORD_HIGH_OFFSET, args[1].arg2, args[1].arg2w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(kContextReg), OffsetOfContextField(tmp2) + WORD_LOW_OFFSET, args[2].arg1, args[2].arg1w);
+    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(kContextReg), OffsetOfContextField(tmp2) + WORD_HIGH_OFFSET, args[2].arg2, args[2].arg2w);
 
     sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), 0, SLJIT_R0, 0);
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, SLJIT_R0, 0);
-    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, 8);
     sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R0, 0, SLJIT_IMM, reinterpret_cast<sljit_sw>((context->compiler->memoryPtr())), args[0].arg1, args[0].arg1w);
+    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R1, 0, kContextReg, 0, SLJIT_IMM, OffsetOfContextField(tmp1));
+    sljit_emit_op2(compiler, SLJIT_ADD, SLJIT_R2, 0, kContextReg, 0, SLJIT_IMM, OffsetOfContextField(tmp2));
     sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, addr);
     sljit_emit_op1(compiler, SLJIT_MOV, args[3].arg1, args[3].arg1w, SLJIT_R0, 0);
     sljit_emit_op1(compiler, SLJIT_MOV, args[3].arg2, args[3].arg2w, SLJIT_R1, 0);
-
-    sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, SLJIT_MEM1(SLJIT_SP), 0);
-    sljit_emit_icall(compiler, SLJIT_CALL, SLJIT_ARGS1(VOID, W), SLJIT_IMM, GET_FUNC_ADDR(sljit_sw, freeCmpxchgMem));
 }
 #undef SIZE_MASK_64
 #undef SIZE_MASK_32
