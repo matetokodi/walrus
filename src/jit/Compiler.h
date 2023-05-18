@@ -62,6 +62,8 @@ public:
         Binary,
         // Binary float operation
         BinaryFloat,
+        // atomic operation (e.g. I32AtomicRmwAdd, I64AtomicRmw16OrU)
+        Atomic,
         // Unary operation (e.g. I32Ctz, U64Clz).
         Unary,
         // Unary float operation

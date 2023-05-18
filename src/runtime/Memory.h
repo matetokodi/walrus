@@ -20,6 +20,7 @@
 #include "util/BitOperation.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/Object.h"
+#include <atomic>
 
 namespace Walrus {
 
@@ -81,6 +82,14 @@ public:
     }
 
     template <typename T>
+    void atomicLoad(ExecutionState& state, uint32_t offset, uint32_t addend, T* out) const
+    {
+        checkAtomicAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        *out = shared->load(std::memory_order_relaxed);
+    }
+
+    template <typename T>
     void load(ExecutionState& state, uint32_t offset, T* out) const
     {
         checkAccess(state, offset, sizeof(T));
@@ -99,6 +108,14 @@ public:
     }
 
     template <typename T>
+    void atomicStore(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val) const
+    {
+        checkAtomicAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        shared->store(val);
+    }
+
+    template <typename T>
     void store(ExecutionState& state, uint32_t offset, const T& val) const
     {
         checkAccess(state, offset, sizeof(T));
@@ -107,6 +124,53 @@ public:
 #else
         *(reinterpret_cast<T*>(&m_buffer[offset])) = val;
 #endif
+    }
+    enum atomicRmwOperation {
+        Add,
+        Sub,
+        And,
+        Or,
+        Xor,
+        Xchg
+    };
+
+    template <typename T>
+    void atomicRmw(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val, T* out, atomicRmwOperation operation) const
+    {
+        checkAtomicAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        switch (operation) {
+        case Add:
+            *out = shared->fetch_add(val);
+            break;
+        case Sub:
+            *out = shared->fetch_sub(val);
+            break;
+        case And:
+            *out = shared->fetch_and(val);
+            break;
+        case Or:
+            *out = shared->fetch_or(val);
+            break;
+        case Xor:
+            *out = shared->fetch_xor(val);
+            break;
+        case Xchg:
+            *out = shared->load(std::memory_order_relaxed);
+            while (!shared->compare_exchange_weak(*out, val)) {}
+            break;
+        }
+    }
+
+    template <typename T>
+    void atomicRmwCmpxchg(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val, T& expected, T* out, bool doStore) const
+    {
+        checkAtomicAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        *out = shared->load(std::memory_order_relaxed);
+        if (doStore) {
+            shared->compare_exchange_weak(expected, val);
+        }
     }
 
     void init(ExecutionState& state, DataSegment* source, uint32_t dstStart, uint32_t srcStart, uint32_t srcSize);
@@ -117,10 +181,19 @@ private:
     Memory(uint32_t initialSizeInByte, uint32_t maximumSizeInByte);
 
     void throwException(ExecutionState& state, uint32_t offset, uint32_t addend, uint32_t size) const;
+    void throwException(ExecutionState& state, const char*) const;
+
     inline void checkAccess(ExecutionState& state, uint32_t offset, uint32_t addend, uint32_t size) const
     {
         if (UNLIKELY(!((uint64_t)offset + (uint64_t)addend + (uint64_t)size <= m_sizeInByte))) {
             throwException(state, offset, addend, size);
+        }
+    }
+    inline void checkAtomicAccess(ExecutionState& state, uint32_t offset, uint32_t addend, uint32_t size) const
+    {
+        checkAccess(state, offset, addend, size);
+        if (UNLIKELY((offset + addend) % size != 0)) {
+            throwException(state, "unaligned atomic");
         }
     }
     inline void checkAccess(ExecutionState& state, uint32_t offset, uint32_t size) const
