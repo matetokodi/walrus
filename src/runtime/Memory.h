@@ -20,6 +20,7 @@
 #include "util/BitOperation.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/Object.h"
+#include <atomic>
 
 namespace Walrus {
 
@@ -81,6 +82,14 @@ public:
     }
 
     template <typename T>
+    void atomicLoad(ExecutionState& state, uint32_t offset, uint32_t addend, T* out) const
+    {
+        checkAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        *out = shared->load(std::memory_order_relaxed);
+    }
+
+    template <typename T>
     void load(ExecutionState& state, uint32_t offset, T* out) const
     {
         checkAccess(state, offset, sizeof(T));
@@ -96,6 +105,14 @@ public:
     {
         checkAccess(state, offset, addend, sizeof(T));
         memcpyEndianAware(m_buffer, &val, m_sizeInByte, sizeof(T), offset + addend, 0, sizeof(T));
+    }
+
+    template <typename T>
+    void atomicStore(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val) const
+    {
+        checkAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        shared->store(val);
     }
 
     template <typename T>

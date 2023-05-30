@@ -281,12 +281,25 @@ ByteCodeStackOffset* Interpreter::interpret(ExecutionState& state,
     DEFINE_OPCODE(opcodeName)                                                             \
         :                                                                                 \
     {                                                                                     \
+        AtomicLoad* code = (AtomicLoad*)programCounter;                                   \
+        uint32_t offset = readValue<uint32_t>(bp, code->srcOffset());                     \
+        nativeReadTypeName value;                                                         \
+        memories[0]->atomicLoad(state, offset, code->offset(), &value);                   \
+        writeValue<nativeWriteTypeName>(bp, code->dstOffset(), value);                    \
+        ADD_PROGRAM_COUNTER(AtomicLoad);                                                  \
+        NEXT_INSTRUCTION();                                                               \
     }
 
 #define ATOMIC_MEMORY_STORE_OPERATION(opcodeName, nativeReadTypeName, nativeWriteTypeName) \
     DEFINE_OPCODE(opcodeName)                                                              \
         :                                                                                  \
     {                                                                                      \
+        AtomicStore* code = (AtomicStore*)programCounter;                                  \
+        nativeWriteTypeName value = readValue<nativeReadTypeName>(bp, code->src1Offset()); \
+        uint32_t offset = readValue<uint32_t>(bp, code->src0Offset());                     \
+        memories[0]->atomicStore(state, offset, code->offset(), value);                    \
+        ADD_PROGRAM_COUNTER(AtomicStore);                                                  \
+        NEXT_INSTRUCTION();                                                                \
     }
 
 #define ATOMIC_MEMORY_RMW_OPERATION(opcodeName, nativeReadTypeName, nativeWriteTypeName) \

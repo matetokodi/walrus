@@ -506,48 +506,6 @@ static int64_t atomicRmwGenericCmpxchg64(std::atomic<int64_t>& shared, int64_t o
     return originalMemValue & modify_mask;
 }
 
-#if 0
-static int64_t atomicRmw64Load64(std::atomic<int64_t>& shared)
-{
-    return atomicRmwGenericLoad64(shared, SIZE_MASK_64);
-}
-
-static int64_t atomicRmw8Load64(std::atomic<int64_t>& shared)
-{
-    return atomicRmwGenericLoad64(shared, SIZE_MASK_8);
-}
-
-static int64_t atomicRmw16Load64(std::atomic<int64_t>& shared)
-{
-    return atomicRmwGenericLoad64(shared, SIZE_MASK_16);
-}
-
-static int64_t atomicRmw32Load64(std::atomic<int64_t>& shared)
-{
-    return atomicRmwGenericLoad64(shared, SIZE_MASK_32);
-}
-
-static void atomicRmw64Store64(std::atomic<int64_t>& shared, int64_t value)
-{
-    atomicRmwGenericStore64(shared, value, SIZE_MASK_64);
-}
-
-static void atomicRmw8Store64(std::atomic<int64_t>& shared, int64_t value)
-{
-    atomicRmwGenericStore64(shared, value, SIZE_MASK_8);
-}
-
-static void atomicRmw16Store64(std::atomic<int64_t>& shared, int64_t value)
-{
-    atomicRmwGenericStore64(shared, value, SIZE_MASK_16);
-}
-
-static void atomicRmw32Store64(std::atomic<int64_t>& shared, int64_t value)
-{
-    atomicRmwGenericStore64(shared, value, SIZE_MASK_32);
-}
-#endif
-
 static int64_t atomicRmw64Cmpxchg64(std::atomic<int64_t>& shared, int64_t* originalValue, int64_t* newValue)
 {
     return atomicRmwGenericCmpxchg64(shared, *originalValue, *newValue, SIZE_MASK_64);
