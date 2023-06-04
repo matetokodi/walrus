@@ -1007,11 +1007,11 @@ protected:
 
 class AtomicCmpxchg : public ByteCode {
 public:
-    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0Offset, ByteCodeStackOffset src1Offset, ByteCodeStackOffset src2Offset, ByteCodeStackOffset dst)
+    AtomicCmpxchg(OpcodeKind opcode, uint32_t offset, ByteCodeStackOffset src0Offset, ByteCodeStackOffset src1Offset, ByteCodeStackOffset src2Offset, ByteCodeStackOffset dstOffset)
         : ByteCode(opcode)
         , m_offset(offset)
         , m_srcOffset{ src0Offset, src1Offset, src2Offset }
-        , m_dstOffset(dst)
+        , m_dstOffset(dstOffset)
     {
     }
 

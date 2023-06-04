@@ -125,6 +125,53 @@ public:
         *(reinterpret_cast<T*>(&m_buffer[offset])) = val;
 #endif
     }
+    enum atomicRmwOperation {
+        Add,
+        Sub,
+        And,
+        Or,
+        Xor,
+        Xchg
+    };
+
+    template <typename T>
+    void atomicRmw(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val, T* out, atomicRmwOperation operation) const
+    {
+        checkAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        switch (operation) {
+        case Add:
+            *out = shared->fetch_add(val);
+            break;
+        case Sub:
+            *out = shared->fetch_sub(val);
+            break;
+        case And:
+            *out = shared->fetch_and(val);
+            break;
+        case Or:
+            *out = shared->fetch_or(val);
+            break;
+        case Xor:
+            *out = shared->fetch_xor(val);
+            break;
+        case Xchg:
+            *out = shared->load(std::memory_order_relaxed);
+            while (!shared->compare_exchange_weak(*out, val)) {}
+            break;
+        }
+    }
+
+    template <typename T>
+    void atomicRmwCmpxchg(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val, T& expected, T* out, bool doStore) const
+    {
+        checkAccess(state, offset, addend, sizeof(T));
+        std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
+        *out = shared->load(std::memory_order_relaxed);
+        if (doStore) {
+            shared->compare_exchange_weak(expected, val);
+        }
+    }
 
     void init(ExecutionState& state, DataSegment* source, uint32_t dstStart, uint32_t srcStart, uint32_t srcSize);
     void copy(ExecutionState& state, uint32_t dstStart, uint32_t srcStart, uint32_t size);
