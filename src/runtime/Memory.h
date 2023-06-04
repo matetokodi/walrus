@@ -84,7 +84,7 @@ public:
     template <typename T>
     void atomicLoad(ExecutionState& state, uint32_t offset, uint32_t addend, T* out) const
     {
-        checkAccess(state, offset, addend, sizeof(T));
+        checkAtomicAccess(state, offset, addend, sizeof(T));
         std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
         *out = shared->load(std::memory_order_relaxed);
     }
@@ -110,7 +110,7 @@ public:
     template <typename T>
     void atomicStore(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val) const
     {
-        checkAccess(state, offset, addend, sizeof(T));
+        checkAtomicAccess(state, offset, addend, sizeof(T));
         std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
         shared->store(val);
     }
@@ -137,7 +137,7 @@ public:
     template <typename T>
     void atomicRmw(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val, T* out, atomicRmwOperation operation) const
     {
-        checkAccess(state, offset, addend, sizeof(T));
+        checkAtomicAccess(state, offset, addend, sizeof(T));
         std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
         switch (operation) {
         case Add:
@@ -165,7 +165,7 @@ public:
     template <typename T>
     void atomicRmwCmpxchg(ExecutionState& state, uint32_t offset, uint32_t addend, const T& val, T& expected, T* out, bool doStore) const
     {
-        checkAccess(state, offset, addend, sizeof(T));
+        checkAtomicAccess(state, offset, addend, sizeof(T));
         std::atomic<T>* shared = reinterpret_cast<std::atomic<T>*>(m_buffer + (offset + addend));
         *out = shared->load(std::memory_order_relaxed);
         if (doStore) {
@@ -181,10 +181,19 @@ private:
     Memory(uint32_t initialSizeInByte, uint32_t maximumSizeInByte);
 
     void throwException(ExecutionState& state, uint32_t offset, uint32_t addend, uint32_t size) const;
+    void throwException(ExecutionState& state, const char*) const;
+
     inline void checkAccess(ExecutionState& state, uint32_t offset, uint32_t addend, uint32_t size) const
     {
         if (UNLIKELY(!((uint64_t)offset + (uint64_t)addend + (uint64_t)size <= m_sizeInByte))) {
             throwException(state, offset, addend, size);
+        }
+    }
+    inline void checkAtomicAccess(ExecutionState& state, uint32_t offset, uint32_t addend, uint32_t size) const
+    {
+        checkAccess(state, offset, addend, size);
+        if (UNLIKELY((offset + addend) % size != 0)) {
+            throwException(state, "unaligned atomic");
         }
     }
     inline void checkAccess(ExecutionState& state, uint32_t offset, uint32_t size) const
