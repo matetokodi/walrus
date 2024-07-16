@@ -27,10 +27,13 @@ struct MemAddress {
 #if (defined SLJIT_32BIT_ARCHITECTURE && SLJIT_32BIT_ARCHITECTURE)
         DontUseOffsetReg = 1 << 4,
 #endif /* SLJIT_32BIT_ARCHITECTURE */
+#if defined(ENABLE_EXTENDED_FEATURES)
+        CheckNaturalAlignment = 1 << 5,
+#endif /* ENABLE_EXTENDED_FEATURES */
     };
 
-    MemAddress(uint8_t baseReg, uint8_t offsetReg, uint8_t sourceReg)
-        : options(0)
+    MemAddress(uint32_t options, uint8_t baseReg, uint8_t offsetReg, uint8_t sourceReg)
+        : options(options)
         , baseReg(baseReg)
         , offsetReg(offsetReg)
         , sourceReg(sourceReg)
@@ -55,6 +58,9 @@ void MemAddress::check(sljit_compiler* compiler, Operand* offsetOperand, sljit_u
 
     ASSERT(!(options & LoadInteger) || baseReg != sourceReg);
     ASSERT(!(options & LoadInteger) || offsetReg != sourceReg);
+#if defined(ENABLE_EXTENDED_FEATURES)
+    ASSERT(!(options & CheckNaturalAlignment) || size != 1);
+#endif /* ENABLE_EXTENDED_FEATURES */
 
     if (UNLIKELY(context->maximumMemorySize < size)) {
         // This memory load is never successful.
@@ -87,6 +93,13 @@ void MemAddress::check(sljit_compiler* compiler, Operand* offsetOperand, sljit_u
             memArg.arg = 0;
             return;
         }
+
+#if defined(ENABLE_EXTENDED_FEATURES)
+        if ((options & CheckNaturalAlignment) && (offset & (size - 1)) != 0) {
+            context->appendTrapJump(ExecutionContext::UnalignedAtomicError, sljit_emit_jump(compiler, SLJIT_NOT_EQUAL));
+            return;
+        }
+#endif /* ENABLE_EXTENDED_FEATURES */
 
         if (offset + size <= context->initialMemorySize) {
             ASSERT(baseReg != 0);
@@ -173,6 +186,16 @@ void MemAddress::check(sljit_compiler* compiler, Operand* offsetOperand, sljit_u
             memArg.arg = SLJIT_MEM1(baseReg);
         }
 #endif /* SLJIT_32BIT_ARCHITECTURE */
+
+#if defined(ENABLE_EXTENDED_FEATURES)
+        if (options & CheckNaturalAlignment) {
+            if (SLJIT_IS_MEM2(memArg.arg)) {
+                sljit_emit_op2(compiler, SLJIT_ADD, TMP_REG1, 0, baseReg, 0, offsetReg, 0);
+            }
+            sljit_emit_op2u(compiler, SLJIT_AND | SLJIT_SET_Z, (SLJIT_IS_MEM2(memArg.arg) ? TMP_REG1 : baseReg), 0, SLJIT_IMM, size - 1);
+            context->appendTrapJump(ExecutionContext::UnalignedAtomicError, sljit_emit_jump(compiler, SLJIT_NOT_EQUAL));
+        }
+#endif /* ENABLE_EXTENDED_FEATURES */
         return;
     }
 
@@ -180,6 +203,13 @@ void MemAddress::check(sljit_compiler* compiler, Operand* offsetOperand, sljit_u
     context->appendTrapJump(ExecutionContext::OutOfBoundsMemAccessError, cmp);
 
     sljit_emit_op2(compiler, SLJIT_ADD, baseReg, 0, baseReg, 0, offsetReg, 0);
+
+#if defined(ENABLE_EXTENDED_FEATURES)
+    if (options & CheckNaturalAlignment) {
+        sljit_emit_op2u(compiler, SLJIT_AND | SLJIT_SET_Z, baseReg, 0, SLJIT_IMM, size - 1);
+        context->appendTrapJump(ExecutionContext::UnalignedAtomicError, sljit_emit_jump(compiler, SLJIT_NOT_EQUAL));
+    }
+#endif /* ENABLE_EXTENDED_FEATURES */
 
     memArg.arg = SLJIT_MEM1(baseReg);
     memArg.argw = -static_cast<sljit_sw>(size);
@@ -215,14 +245,27 @@ void MemAddress::load(sljit_compiler* compiler)
 #endif /* HAS_SIMD */
 }
 
+#if defined(ENABLE_EXTENDED_FEATURES) && (defined SLJIT_32BIT_ARCHITECTURE && SLJIT_32BIT_ARCHITECTURE)
+static uint64_t atomicRmwLoad64(std::atomic<int64_t>& shared, int32_t size)
+{
+    uint64_t mask = (0xff | (size >= 2 ? 0xffff : 0x0) | (size >= 4 ? 0xffffffff : 0x0) | (size >= 8 ? 0xffffffffffffffff : 0x0));
+    uint64_t val = shared.load(std::memory_order_relaxed) & mask;
+    return val;
+}
+#endif /* ENABLE_EXTENDED_FEATURES && SLJIT_32BIT_ARCHITECTURE  */
+
 static void emitLoad(sljit_compiler* compiler, Instruction* instr)
 {
     sljit_s32 opcode;
     sljit_u32 size;
     sljit_u32 offset = 0;
+    uint32_t options = 0;
 #ifdef HAS_SIMD
     sljit_s32 simdType = 0;
 #endif /* HAS_SIMD */
+#if defined(ENABLE_EXTENDED_FEATURES)
+    bool isAtomic = false;
+#endif /* ENABLE_EXTENDED_FEATURES */
 
     switch (instr->opcode()) {
     case ByteCode::Load32Opcode:
@@ -358,6 +401,50 @@ static void emitLoad(sljit_compiler* compiler, Instruction* instr)
         size = 8;
         break;
 #endif /* HAS_SIMD */
+#if defined(ENABLE_EXTENDED_FEATURES)
+    case ByteCode::I32AtomicLoadOpcode: {
+        opcode = SLJIT_MOV32;
+        size = 4;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I32AtomicLoad8UOpcode: {
+        opcode = SLJIT_MOV_U8;
+        size = 1;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I32AtomicLoad16UOpcode: {
+        opcode = SLJIT_MOV_U16;
+        size = 2;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicLoadOpcode: {
+        opcode = SLJIT_MOV;
+        size = 8;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicLoad8UOpcode: {
+        opcode = SLJIT_MOV_U8;
+        size = 1;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicLoad16UOpcode: {
+        opcode = SLJIT_MOV_U16;
+        size = 2;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicLoad32UOpcode: {
+        opcode = SLJIT_MOV_U32;
+        size = 4;
+        isAtomic = true;
+        break;
+    }
+#endif /* ENABLE_EXTENDED_FEATURES */
     default:
         ASSERT(instr->opcode() == ByteCode::F64LoadOpcode);
         opcode = SLJIT_MOV_F64;
@@ -377,8 +464,19 @@ static void emitLoad(sljit_compiler* compiler, Instruction* instr)
     }
 #endif /* HAS_SIMD */
 
+#if defined(ENABLE_EXTENDED_FEATURES)
+    if (isAtomic) {
+        if (size > 1) {
+            options |= MemAddress::CheckNaturalAlignment;
+        }
+#if defined(WALRUS_32)
+        options |= MemAddress::DontUseOffsetReg;
+#endif /* WALRUS_32 */
+    }
+#endif /* ENABLE_EXTENDED_FEATURES */
+
     Operand* operands = instr->operands();
-    MemAddress addr(instr->requiredReg(start + 0), instr->requiredReg(start + 1), 0);
+    MemAddress addr(options, instr->requiredReg(start + 0), instr->requiredReg(start + 1), 0);
 
     addr.check(compiler, operands, offset, size);
 
@@ -445,15 +543,26 @@ static void emitLoad(sljit_compiler* compiler, Instruction* instr)
 
         if (opcode == SLJIT_MOV) {
             sljit_s32 dstReg2 = GET_TARGET_REG(valueArgPair.arg2, instr->requiredReg(1));
-            sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_LOAD | SLJIT_MEM_UNALIGNED, SLJIT_REG_PAIR(dstReg1, dstReg2), addr.memArg.arg, addr.memArg.argw);
+            if (!isAtomic) {
+                sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_LOAD | SLJIT_MEM_UNALIGNED, SLJIT_REG_PAIR(dstReg1, dstReg2), addr.memArg.arg, addr.memArg.argw);
 
-            if (SLJIT_IS_MEM(valueArgPair.arg1)) {
+                if (SLJIT_IS_MEM(valueArgPair.arg1)) {
 #if (defined SLJIT_BIG_ENDIAN && SLJIT_BIG_ENDIAN)
-                sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_STORE, SLJIT_REG_PAIR(dstReg1, dstReg2), valueArgPair.arg2, valueArgPair.arg2w);
+                    sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_STORE, SLJIT_REG_PAIR(dstReg1, dstReg2), valueArgPair.arg2, valueArgPair.arg2w);
 #else /* !SLJIT_BIG_ENDIAN */
-                sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_STORE, SLJIT_REG_PAIR(dstReg1, dstReg2), valueArgPair.arg1, valueArgPair.arg1w);
+                    sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_STORE, SLJIT_REG_PAIR(dstReg1, dstReg2), valueArgPair.arg1, valueArgPair.arg1w);
 #endif /* SLJIT_BIG_ENDIAN */
+                }
+                return;
             }
+            sljit_s32 type = SLJIT_ARGS2(W, P, W);
+            sljit_s32 faddr = GET_FUNC_ADDR(sljit_sw, atomicRmwLoad64);
+
+            sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, addr.baseReg, 0);
+            sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, SLJIT_IMM, size);
+            sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, faddr);
+            sljit_emit_op1(compiler, SLJIT_MOV, dstReg1, 0, SLJIT_R1, 0);
+            sljit_emit_op1(compiler, SLJIT_MOV, dstReg2, 0, SLJIT_R0, 0);
             return;
         }
 
@@ -532,7 +641,7 @@ static void emitLoadLaneSIMD(sljit_compiler* compiler, Instruction* instr)
     JITArg initValue;
     simdOperandToArg(compiler, operands + 1, initValue, simdType, dstReg);
 
-    MemAddress addr(instr->requiredReg(1), instr->requiredReg(2), 0);
+    MemAddress addr(0, instr->requiredReg(1), instr->requiredReg(2), 0);
     addr.check(compiler, operands, loadOperation->offset(), size);
 
     if (addr.memArg.arg == 0) {
@@ -556,15 +665,28 @@ static void emitLoadLaneSIMD(sljit_compiler* compiler, Instruction* instr)
 
 #endif /* HAS_SIMD */
 
+#if defined(ENABLE_EXTENDED_FEATURES) && (defined SLJIT_32BIT_ARCHITECTURE && SLJIT_32BIT_ARCHITECTURE)
+static void atomicRmwStore64(std::atomic<int64_t>& shared, int64_t value, int32_t size)
+{
+    uint64_t mask = (0xff | (size >= 2 ? 0xffff : 0x0) | (size >= 4 ? 0xffffffff : 0x0) | (size >= 8 ? 0xffffffffffffffff : 0x0));
+    int64_t oldValue = shared.load(std::memory_order_relaxed);
+    while (!shared.compare_exchange_weak(oldValue, (oldValue & ~mask) | (value & mask))) {}
+}
+#endif /* ENABLE_EXTENDED_FEATURES && SLJIT_32BIT_ARCHITECTURE  */
+
 static void emitStore(sljit_compiler* compiler, Instruction* instr)
 {
     sljit_s32 opcode;
     sljit_u32 size;
     sljit_u32 offset = 0;
+    sljit_u32 options = 0;
 #ifdef HAS_SIMD
     sljit_s32 simdType = 0;
     sljit_s32 laneIndex = 0;
 #endif /* HAS_SIMD */
+#if defined(ENABLE_EXTENDED_FEATURES)
+    bool isAtomic = false;
+#endif /* ENABLE_EXTENDED_FEATURES */
 
     switch (instr->opcode()) {
     case ByteCode::Store32Opcode:
@@ -637,6 +759,50 @@ static void emitStore(sljit_compiler* compiler, Instruction* instr)
         size = 8;
         break;
 #endif /* HAS_SIMD */
+#if defined(ENABLE_EXTENDED_FEATURES)
+    case ByteCode::I32AtomicStoreOpcode: {
+        opcode = SLJIT_MOV32;
+        size = 4;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I32AtomicStore8Opcode: {
+        opcode = SLJIT_MOV_U8;
+        size = 1;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I32AtomicStore16Opcode: {
+        opcode = SLJIT_MOV_U16;
+        size = 2;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicStoreOpcode: {
+        opcode = SLJIT_MOV;
+        size = 8;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicStore8Opcode: {
+        opcode = SLJIT_MOV_U8;
+        size = 1;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicStore16Opcode: {
+        opcode = SLJIT_MOV_U16;
+        size = 2;
+        isAtomic = true;
+        break;
+    }
+    case ByteCode::I64AtomicStore32Opcode: {
+        opcode = SLJIT_MOV_U32;
+        size = 4;
+        isAtomic = true;
+        break;
+    }
+#endif /* ENABLE_EXTENDED_FEATURES */
     default:
         ASSERT(instr->opcode() == ByteCode::F64StoreOpcode);
         opcode = SLJIT_MOV_F64;
@@ -666,8 +832,19 @@ static void emitStore(sljit_compiler* compiler, Instruction* instr)
     }
 #endif /* HAS_SIMD */
 
+#if defined(ENABLE_EXTENDED_FEATURES)
+    if (isAtomic) {
+        if (size > 1) {
+            options |= MemAddress::CheckNaturalAlignment;
+        }
+#if defined(WALRUS_32)
+        options |= MemAddress::DontUseOffsetReg;
+#endif /* WALRUS_32 */
+    }
+#endif /* ENABLE_EXTENDED_FEATURES */
+
     Operand* operands = instr->operands();
-    MemAddress addr(instr->requiredReg(start), instr->requiredReg(start + 1), instr->requiredReg(start == 0 ? 2 : 0));
+    MemAddress addr(options, instr->requiredReg(start), instr->requiredReg(start + 1), instr->requiredReg(start == 0 ? 2 : 0));
 #if (defined SLJIT_32BIT_ARCHITECTURE && SLJIT_32BIT_ARCHITECTURE)
     JITArgPair valueArgPair;
 #endif /* SLJIT_32BIT_ARCHITECTURE */
@@ -796,7 +973,18 @@ static void emitStore(sljit_compiler* compiler, Instruction* instr)
 #endif /* SLJIT_BIG_ENDIAN */
         }
 
-        sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_STORE | SLJIT_MEM_UNALIGNED, SLJIT_REG_PAIR(dstReg1, dstReg2), addr.memArg.arg, addr.memArg.argw);
+        if (!isAtomic) {
+            sljit_emit_mem(compiler, SLJIT_MOV | SLJIT_MEM_STORE | SLJIT_MEM_UNALIGNED, SLJIT_REG_PAIR(dstReg1, dstReg2), addr.memArg.arg, addr.memArg.argw);
+            return;
+        }
+        sljit_s32 type = SLJIT_ARGS4V(P, W, W, W);
+        sljit_s32 faddr = GET_FUNC_ADDR(sljit_sw, atomicRmwStore64);
+
+        sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R0, 0, GET_SOURCE_REG(addr.memArg.arg, instr->requiredReg(0)), 0);
+        sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R1, 0, dstReg1, 0);
+        sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R2, 0, dstReg2, 0);
+        sljit_emit_op1(compiler, SLJIT_MOV, SLJIT_R3, 0, SLJIT_IMM, size);
+        sljit_emit_icall(compiler, SLJIT_CALL, type, SLJIT_IMM, faddr);
         return;
     }
 #endif /* SLJIT_32BIT_ARCHITECTURE */
@@ -922,6 +1110,45 @@ static void emitMemory(sljit_compiler* compiler, Instruction* instr)
     }
     }
 }
+
+#if defined(ENABLE_EXTENDED_FEATURES)
+
+static void emitAtomic(sljit_compiler* compiler, Instruction* instr)
+{
+    sljit_s32 operation;
+    sljit_s32 options = 0;
+
+    switch (instr->opcode()) {
+    case ByteCode::I32AtomicLoadOpcode:
+    case ByteCode::I32AtomicLoad8UOpcode:
+    case ByteCode::I32AtomicLoad16UOpcode:
+    case ByteCode::I64AtomicLoadOpcode:
+    case ByteCode::I64AtomicLoad8UOpcode:
+    case ByteCode::I64AtomicLoad16UOpcode:
+    case ByteCode::I64AtomicLoad32UOpcode: {
+        /* Load operations are always atomic if the memory is naturally aligned (alignment is checked by addr.check()) */
+        emitLoad(compiler, instr);
+        break;
+    }
+    case ByteCode::I32AtomicStoreOpcode:
+    case ByteCode::I32AtomicStore8Opcode:
+    case ByteCode::I32AtomicStore16Opcode:
+    case ByteCode::I64AtomicStoreOpcode:
+    case ByteCode::I64AtomicStore8Opcode:
+    case ByteCode::I64AtomicStore16Opcode:
+    case ByteCode::I64AtomicStore32Opcode: {
+        /* Store operations are always atomic if the memory is naturally aligned (alignment is checked by addr.check()) */
+        emitStore(compiler, instr);
+        break;
+    }
+    default: {
+        RELEASE_ASSERT_NOT_REACHED();
+        break;
+    }
+    }
+}
+
+#endif /* ENABLE_EXTENDED_FEATURES */
 
 static void dropData(uint32_t segmentIndex, ExecutionContext* context)
 {
