@@ -586,7 +586,8 @@ class FunctionType;
 #define FOR_EACH_BYTECODE_ATOMIC_OTHER(F) \
     F(MemoryAtomicNotify)                 \
     F(MemoryAtomicWait32)                 \
-    F(MemoryAtomicWait64)
+    F(MemoryAtomicWait64)                 \
+    F(AtomicFence)
 #else // Extended Features
 #define FOR_EACH_BYTECODE_ATOMIC_LOAD_OP(F)
 #define FOR_EACH_BYTECODE_ATOMIC_STORE_OP(F)
@@ -1863,6 +1864,22 @@ protected:
     ByteCodeStackOffset m_src0Offset;
     ByteCodeStackOffset m_src1Offset;
     ByteCodeStackOffset m_dstOffset;
+};
+
+class AtomicFence : public ByteCode {
+public:
+    AtomicFence()
+        : ByteCode(Opcode::AtomicFenceOpcode)
+    {
+    }
+
+#if !defined(NDEBUG)
+    void dump(size_t pos)
+    {
+    }
+#endif
+protected:
+    uint32_t m_offset;
 };
 #endif
 
