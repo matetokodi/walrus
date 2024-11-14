@@ -1258,20 +1258,17 @@ public:
     }
 
     /* target_features section */
+    // TODO: Add feature tests for building with wasi-clang.
     Result BeginTargetFeaturesSection(Offset size) override {
-        abort();
         return Result::Ok;
     }
     Result OnFeatureCount(Index count) override {
-        abort();
         return Result::Ok;
     }
     Result OnFeature(uint8_t prefix, nonstd::string_view name) override {
-        abort();
         return Result::Ok;
     }
     Result EndTargetFeaturesSection() override {
-        abort();
         return Result::Ok;
     }
 
