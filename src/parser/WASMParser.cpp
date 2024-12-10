@@ -665,7 +665,9 @@ private:
     std::pair<Walrus::Optional<uint32_t>, size_t> readAheadLocalGetIfExists() // return localIndex and code length if exists
     {
         Walrus::Optional<uint8_t> mayLoadGetCode = lookaheadUnsigned8();
-        if (mayLoadGetCode.hasValue() && mayLoadGetCode.value() == 0x21) {
+        Walrus::Optional<uint8_t> mayLoadGetCodePrev = lookaheadUnsigned8(-1);
+        if (mayLoadGetCode.hasValue() && mayLoadGetCode.value() == 0x21 &&
+            !(mayLoadGetCodePrev.hasValue() && mayLoadGetCodePrev.value() == 0x1f)) {
             auto r = lookaheadUnsigned32(1);
             if (r.first) {
                 return std::make_pair(r.first, r.second + 1);
