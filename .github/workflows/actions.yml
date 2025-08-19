@@ -43,7 +43,7 @@ jobs:
         env:
           BUILD_OPTIONS: -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -GNinja
         run: |
-          cmake -H. -Bout/mac $BUILD_OPTIONS
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/mac $BUILD_OPTIONS
           ninja -Cout/mac
       - name: "Remove 2 test files due to stack overflow occurred by recursion calls in debug mode build by clang"
         if: matrix.mode == 'debug' && matrix.switch == ''
@@ -74,7 +74,7 @@ jobs:
         env:
           BUILD_OPTIONS: -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -GNinja
         run: |
-          cmake -H. -Bout/mac $BUILD_OPTIONS
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/mac $BUILD_OPTIONS
           ninja -Cout/mac
       - name: "Remove 2 test files due to stack overflow occurred by recursion calls in debug mode build by clang"
         if: matrix.mode == 'debug'

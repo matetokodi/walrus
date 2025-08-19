@@ -184,8 +184,9 @@ ELSEIF (${WALRUS_HOST} STREQUAL "darwin")
     ENDIF()
     SET (WALRUS_LDFLAGS -lpthread -Wl,-dead_strip)
     # bdwgc mac cannot support pthread_getattr_np
-    SET (WALRUS_THIRDPARTY_CFLAGS ${WALRUS_THIRDPARTY_CFLAGS} -UHAVE_PTHREAD_GETATTR_NP)
+    SET (WALRUS_THIRDPARTY_CFLAGS ${WALRUS_THIRDPARTY_CFLAGS} -UHAVE_PTHREAD_GETATTR_NP -UUSE_GET_STACKBASE_FOR_MAIN)
     SET (WALRUS_BUILD_64BIT ON)
+    SET (WALRUS_BUILD_64BIT_LARGE ON)
 ELSEIF (${WALRUS_HOST} STREQUAL "windows")
     # in windows, default stack limit is 1MB
     # but expand stack to 8MB when building to exe for running test
@@ -211,7 +212,6 @@ ELSEIF (${WALRUS_HOST} STREQUAL "windows")
     ELSE()
         MESSAGE (FATAL_ERROR ${WALRUS_ARCH} " is unsupported")
     ENDIF()
-
 ELSE()
     MESSAGE (FATAL_ERROR ${WALRUS_HOST} " with " ${WALRUS_ARCH} " is unsupported")
 ENDIF()
