@@ -2,7 +2,7 @@ name: Actions
 
 on:
   push:
-    branches: [main]
+    branches: [main, escargot_gc_wip_macos_ci_testing]
   pull_request:
     branches: [main]
 
