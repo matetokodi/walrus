@@ -38,7 +38,7 @@ jobs:
       - name: Install Packages
         run: |
           brew update
-          brew install cmake ninja pkg-config
+          brew install ninja pkg-config
       - name: Build x64
         env:
           BUILD_OPTIONS: -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -GNinja
@@ -69,7 +69,7 @@ jobs:
       - name: Install Packages
         run: |
           brew update
-          brew install cmake ninja
+          brew install ninja
       - name: Build arm64
         env:
           BUILD_OPTIONS: -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -GNinja
