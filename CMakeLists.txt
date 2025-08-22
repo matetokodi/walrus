@@ -81,6 +81,8 @@ MESSAGE(STATUS "Walrus Output: " ${WALRUS_OUTPUT})
 MESSAGE(STATUS "Walrus WASI Enabled: " ${WALRUS_WASI})
 MESSAGE(STATUS "Walrus GC Enabled: " ${WALRUS_GC})
 
+MESSAGE ("target: " ${CMAKE_CXX_COMPILER_ID})
+
 SET (WALRUS_TARGET walrus)
 
 INCLUDE (ProcessorCount)
