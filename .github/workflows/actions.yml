@@ -296,6 +296,8 @@ jobs:
         with:
           submodules: true
       - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
           sdk-version: 26100
