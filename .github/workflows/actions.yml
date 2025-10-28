@@ -450,6 +450,47 @@ jobs:
           #FIXME try-catch is unstable in macos build
           $RUNNER --engine="$GITHUB_WORKSPACE/out/mac/walrus" ${{ matrix.switch }}
 
+  build-test-no-gc-on-windows-x86-x64:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        arch: [x86, x64]
+    steps:
+      - name: Set git cllf config
+        run: |
+          git config --global core.autocrlf input
+          git config --global core.eol lf
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
+      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
+        with:
+          sdk-version: 26100
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install msvc redist package
+        run: |
+          (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
+          .\VisualCppRedist_AIO_x86_x64.exe /y
+      - uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: ${{ matrix.arch }}
+          sdk: "10.0.26100.0"
+      - name: Build ${{ matrix.arch }} Release
+        run: |
+          CMake -DCMAKE_POLICY_VERSION_MINIMUM="3.5" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release -DWALRUS_GC=OFF 
+          CMake --build out/ --config Release
+      - name: Run tests
+        run: |
+          python tools\run-tests.py --engine=%cd%\out\walrus.exe
+        shell: cmd
+      - if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
 
   build-test-performance-x64_x86:
     strategy:
