@@ -386,7 +386,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [debug, release]
+        mode: [debug]
         arch: [x64]
         switch: [--jit, ""]
     steps:
@@ -417,7 +417,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [debug, release]
+        mode: [debug]
         switch: [--jit, ""]
     runs-on: macos-latest
     steps:
@@ -455,6 +455,7 @@ jobs:
     strategy:
       matrix:
         arch: [x86, x64]
+        switch: [--jit, ""]
     steps:
       - name: Set git cllf config
         run: |
@@ -484,9 +485,15 @@ jobs:
         run: |
           CMake -DCMAKE_POLICY_VERSION_MINIMUM="3.5" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release -DWALRUS_GC=OFF 
           CMake --build out/ --config Release
+      - name: "Remove GC tests"
+        run: |
+          del /q /s .\test\web-assembly3\gc
+          del /q .\test\web-assembly3/jit\gc_cast_abstract.wast
+          del /q .\test\web-assembly3/jit\gc_cast_concrete.wast
+          del /q .\test\web-assembly3/jit\gc_refeq.wast
       - name: Run tests
         run: |
-          python tools\run-tests.py --engine=%cd%\out\walrus.exe
+          python tools\run-tests.py --engine=%cd%\out\walrus.exe ${{ matrix.switch }}
         shell: cmd
       - if: ${{ failure() }}
         uses: mxschmitt/action-tmate@v3
