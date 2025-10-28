@@ -386,7 +386,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [debug]
+        mode: [debug, release]
         arch: [x64]
         switch: [--jit, ""]
     steps:
@@ -417,7 +417,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [debug]
+        mode: [debug, release]
         switch: [--jit, ""]
     runs-on: macos-latest
     steps:
