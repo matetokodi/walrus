@@ -2,7 +2,7 @@ name: Actions
 
 on:
   push:
-    branches: [main]
+    branches: [main, add_nogc_ci_wip]
   pull_request:
     branches: [main]
 
