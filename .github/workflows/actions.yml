@@ -488,9 +488,9 @@ jobs:
       - name: "Remove GC tests"
         run: |
           Remove-Item -Path .\test\web-assembly3\gc -Force -Recurse  
-          del /q .\test\web-assembly3/jit\gc_cast_abstract.wast
-          del /q .\test\web-assembly3/jit\gc_cast_concrete.wast
-          del /q .\test\web-assembly3/jit\gc_refeq.wast
+          Remove-Item .\test\web-assembly3/jit\gc_cast_abstract.wast
+          Remove-Item .\test\web-assembly3/jit\gc_cast_concrete.wast
+          Remove-Item .\test\web-assembly3/jit\gc_refeq.wast
       - name: Run tests
         run: |
           python tools\run-tests.py --engine=%cd%\out\walrus.exe ${{ matrix.switch }}
