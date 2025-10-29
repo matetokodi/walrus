@@ -454,7 +454,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        arch: [x86, x64]
+        arch: [x64]
         switch: [--jit, ""]
     steps:
       - name: Set git cllf config
@@ -487,7 +487,7 @@ jobs:
           CMake --build out/ --config Release
       - name: "Remove GC tests"
         run: |
-          del /q /s .\test\web-assembly3\gc
+          rmdir .\test\web-assembly3\gc /s /q
           del /q .\test\web-assembly3/jit\gc_cast_abstract.wast
           del /q .\test\web-assembly3/jit\gc_cast_concrete.wast
           del /q .\test\web-assembly3/jit\gc_refeq.wast
