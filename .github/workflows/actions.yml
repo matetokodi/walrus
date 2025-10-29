@@ -380,81 +380,86 @@ jobs:
 #      - name: Run Tests
 #        run: |
 #          $RUNNER --engine="$GITHUB_WORKSPACE/out/extended/walrus" ${{ matrix.switch }} wasm-test-extended
-#
-#  build-test-no-gc-linux:
-#    runs-on: ubuntu-latest
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        mode: [debug]
-#        arch: [x64]
-#        switch: [--jit, ""]
-#    steps:
-#      - uses: actions/checkout@v4
-#        with:
-#          submodules: true
-#      - name: Install Packages
-#        run: |
-#          sudo apt update
-#          sudo apt install -y ninja-build gcc-multilib g++-multilib
-#      - name: Build ${{ matrix.arch}}
-#        env:
-#          BUILD_OPTIONS: -DWALRUS_ARCH=${{ matrix.arch }} -DWALRUS_HOST=linux -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -DWALRUS_GC=OFF -GNinja
-#        run: |
-#          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/nogc $BUILD_OPTIONS
-#          ninja -Cout/nogc
-#      - name: "Remove GC tests"
-#        run: |
-#          rm -rf ./test/web-assembly3/gc
-#          rm ./test/web-assembly3/jit/gc_cast_abstract.wast
-#          rm ./test/web-assembly3/jit/gc_cast_concrete.wast
-#          rm ./test/web-assembly3/jit/gc_refeq.wast
-#      - name: Run Tests
-#        run: |
-#          $RUNNER --engine="$GITHUB_WORKSPACE/out/nogc/walrus" ${{ matrix.switch }}
-#
-#  build-test-no-gc-on-macos-arm64:
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        mode: [debug]
-#        switch: [--jit, ""]
-#    runs-on: macos-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#        with:
-#          submodules: true
-#      - name: Install Packages
-#        run: |
-#          brew update
-#          brew install ninja
-#      - name: Build arm64
-#        env:
-#          BUILD_OPTIONS: -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -DWALRUS_GC=OFF -GNinja
-#        run: |
-#          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/mac $BUILD_OPTIONS
-#          ninja -Cout/mac
-#      - name: "Remove 2 test files due to stack overflow occurred by recursion calls in debug mode build by clang"
-#        if: matrix.mode == 'debug'
-#        run: |
-#          rm ./test/wasm-spec/core/call.wast
-#          rm ./test/wasm-spec/core/call_indirect.wast
-#      - name: "Remove GC tests"
-#        run: |
-#          rm -rf ./test/web-assembly3/gc
-#          rm ./test/web-assembly3/jit/gc_cast_abstract.wast
-#          rm ./test/web-assembly3/jit/gc_cast_concrete.wast
-#          rm ./test/web-assembly3/jit/gc_refeq.wast
-#      - name: Run Tests
-#        run: |
-#          #FIXME try-catch is unstable in macos build
-#          $RUNNER --engine="$GITHUB_WORKSPACE/out/mac/walrus" ${{ matrix.switch }}
+
+  build-test-no-gc-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [debug, release]
+        arch: [x64]
+        switch: [--jit, ""]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Packages
+        run: |
+          sudo apt update
+          sudo apt install -y ninja-build gcc-multilib g++-multilib
+      - name: Build ${{ matrix.arch}}
+        env:
+          BUILD_OPTIONS: -DWALRUS_ARCH=${{ matrix.arch }} -DWALRUS_HOST=linux -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -DWALRUS_GC=OFF -GNinja
+        run: |
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/nogc $BUILD_OPTIONS
+          ninja -Cout/nogc
+      - name: "Remove GC tests"
+        run: |
+          rm -rf ./test/web-assembly3/gc
+          rm ./test/web-assembly3/jit/gc_cast_abstract.wast
+          rm ./test/web-assembly3/jit/gc_cast_concrete.wast
+          rm ./test/web-assembly3/jit/gc_refeq.wast
+          rm ./test/web-assembly3/jit/array_copy_large_value.wast
+          rm ./test/web-assembly3/jit/array_fill_large_value.wast
+      - name: Run Tests
+        run: |
+          $RUNNER --engine="$GITHUB_WORKSPACE/out/nogc/walrus" ${{ matrix.switch }}
+
+  build-test-no-gc-on-macos-arm64:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [debug, release]
+        switch: [--jit, ""]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Packages
+        run: |
+          brew update
+          brew install ninja
+      - name: Build arm64
+        env:
+          BUILD_OPTIONS: -DWALRUS_MODE=${{ matrix.mode }} -DWALRUS_OUTPUT=shell -DWALRUS_GC=OFF -GNinja
+        run: |
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/mac $BUILD_OPTIONS
+          ninja -Cout/mac
+      - name: "Remove 2 test files due to stack overflow occurred by recursion calls in debug mode build by clang"
+        if: matrix.mode == 'debug'
+        run: |
+          rm ./test/wasm-spec/core/call.wast
+          rm ./test/wasm-spec/core/call_indirect.wast
+      - name: "Remove GC tests"
+        run: |
+          rm -rf ./test/web-assembly3/gc
+          rm ./test/web-assembly3/jit/gc_cast_abstract.wast
+          rm ./test/web-assembly3/jit/gc_cast_concrete.wast
+          rm ./test/web-assembly3/jit/gc_refeq.wast
+          rm ./test/web-assembly3/jit/array_copy_large_value.wast
+          rm ./test/web-assembly3/jit/array_fill_large_value.wast
+      - name: Run Tests
+        run: |
+          #FIXME try-catch is unstable in macos build
+          $RUNNER --engine="$GITHUB_WORKSPACE/out/mac/walrus" ${{ matrix.switch }}
 
   build-test-no-gc-on-windows-x86-x64:
     runs-on: windows-2022
     strategy:
       matrix:
         arch: [x64]
+        mode: [debug, release]
         switch: [--jit, ""]
     steps:
       - name: Set git cllf config
@@ -481,10 +486,10 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           sdk: "10.0.26100.0"
-      - name: Build ${{ matrix.arch }} Release
+      - name: Build ${{ matrix.arch }} ${{ matrix.mode }}
         run: |
-          CMake -DCMAKE_POLICY_VERSION_MINIMUM="3.5" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release -DWALRUS_GC=OFF 
-          CMake --build out/ --config Release
+          CMake -DCMAKE_POLICY_VERSION_MINIMUM="3.5" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -Bout/ -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=${{ matrix.mode }} -DWALRUS_GC=OFF 
+          CMake --build out/ --config ${{ matrix.mode }}
       - name: "Remove GC tests"
         run: |
           Remove-Item -Path .\test\web-assembly3\gc -Force -Recurse  
